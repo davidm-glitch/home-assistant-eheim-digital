@@ -1,0 +1,15 @@
+{
+  "domain": "eheim_digital",
+  "name": "EHEIM Digital",
+  "codeowners": [
+    "@davidm-glitch"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/davidm-glitch/home-assistant-eheim-digital",
+  "homekit": {},
+  "iot_class": "local_push",
+  "requirements": [],
+  "ssdp": [],
+  "zeroconf": []
+}
