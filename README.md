@@ -133,8 +133,8 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 | `dfsFaktor` | `int` | all | unknown |
 | `end_time_night_mode` | `int` | `bio` | endtime of night, `value` / 60 = time |
 | `filterActive` | `int` | all | 1 = running, 0 = stopped |
-| `freq` | `int` | all | current speed, `maxFreq` / `freq` * 100 = value in % |
-| `freqSoll` | `int` | all | target speed, `maxFreq` / `freqSoll` * 100 = value in % |
+| `freq` | `int` | all | current speed, `freq` / `maxFreq` * 100 = value in % |
+| `freqSoll` | `int` | all | target speed, `freqSoll` / `maxFreq` * 100 = value in % |
 | `from` | `string` | all | MAC address of device |
 | `isEheim` | `int` | all | unknown |
 | `maxFreq` | `int` | `constant`, `bio`, `pulse` | maximum possible freq in these modes (unsure) |
