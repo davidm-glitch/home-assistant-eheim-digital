@@ -41,7 +41,7 @@
 | climacontrol+ M | No | No | | |
 | climacontrol+ L | No | No | | |
 
-## Websocket Data
+## Receiving Websocket Data
 
 Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples of device data that I have available:
 
@@ -84,9 +84,9 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 | `nReduce` | `int` | `smart` | reduction of temperature at night |
 | `nightStartT` | `int` | all | unknown |
 | `offset` | `int` | all | unknown |
-| `partnerName` | `string` | all | unknown |
+| `partnerName` | `string` | `smart` | Devicename when synced |
 | `sollTemp` | `int` | all | target temperature, `value` / 10 = temperature |
-| `sync` | `string` | all | unknown |
+| `sync` | `string` | `smart` | partner MAC address |
 | `title` | `int` | all | = `HEATER_DATA` |
 | `to` | `string` | all | = `USER` |
 
@@ -156,3 +156,40 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 | `turnOffTime` | `int` | all | time in s until automatic turn on after turning off via webinterface |
 | `turnTimeFeeding` | `int` | all | unknown, maybe something for connection to autofeeder+ ? |
 | `version` | `int` | all | unknown |
+
+# Sending Websocket Commands
+
+## External filters
+<b>Turn off</b>
+
+`{"title":"SET_FILTER_PUMP","to":"<MAC_ADDRESS>","active":0,"from":"USER"}`
+
+<b>Turn on</b>
+
+`{"title":"SET_FILTER_PUMP","to":"<MAC_ADDRESS>","active":1,"from":"USER"}`
+
+<b>Change mode to `constant` or change flow rate</b>
+
+`{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"<MAC_ADDRESS>","flow_rate":<NEW_VALUE>,"from":"USER"}`
+
+<sub>flow_rate means steps from 0 to 8</sub>
+
+<b>Change mode to `bio` or change values</b>
+
+`{"title":"START_NOCTURNAL_MODE","to":"<MAC_ADDRESS>","dfs_soll_day":<NEW_VALUE>,"dfs_soll_night":<NEW_VALUE>,"end_time_night_mode":<NEW_VALUE>,"start_time_night_mode":<NEW_VALUE>,"from":"USER"}`
+
+<b>Change mode to `pulse` or change values</b>
+
+`{"title":"START_FILTER_PULSE_MODE","to":"<MAC_ADDRESS>","time_high":<NEW_VALUE>,"time_low":<NEW_VALUE>,"dfs_soll_high":<NEW_VALUE>,"dfs_soll_low":<NEW_VALUE>,"from":"USER"}`
+
+<b>Change mode to `manual` or change manual speed</b>
+
+`{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"<MAC_ADDRESS>","frequency":<NEW_VALUE>,"from":"USER"}`
+
+## Heaters
+
+<b>Change any value</b>
+
+There will always be sent the same message
+
+`{"title":"SET_EHEATER_PARAM","to":"<MAC_ADDRESS>","mUnit":<NEW_VALUE>,"sollTemp":<NEW_VALUE>,"active":<NEW_VALUE>,"hystLow":<NEW_VALUE>,"hystHigh":<NEW_VALUE>,"offset":<NEW_VALUE>,"mode":<NEW_VALUE>,"sync":"<MAC_ADDRESS>","partnerName":"<NAME>","dayStartT":<NEW_VALUE>,"nightStartT":<NEW_VALUE>,"nReduce":<NEW_VALUE>,"from":"USER"}`
