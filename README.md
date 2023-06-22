@@ -45,8 +45,12 @@
 
 Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples of device data that I have available:
 
+<details>
+<summary>
 <b>EHEIM thermocontrol+ e 300</b>
-```
+</summary>
+
+```json
 {
   "active": 1,
   "alertState": 0,
@@ -68,7 +72,9 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
   "to": "USER"
 }
 ```
-### Explanation of values
+
+<b>Explanation of values</b>
+
 | Key | Type | Mode | Meaning |
 | --- | --- | --- | --- |
 | `active` | `int` | all | 0 = turned off, 1 = turned on |
@@ -90,9 +96,14 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 | `title` | `int` | all | = `HEATER_DATA` |
 | `to` | `string` | all | = `USER` |
 
+</details>
 
+<details>
+<summary>
 <b>EHEIM professionel 5e 700</b>
-```
+</summary>
+  
+```json
 {
   "actualTime": 2784,
   "dfs": 1375,
@@ -125,7 +136,9 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
   "version": 78
 }
 ```
-### Explanation of values
+    
+<b>Explanation of values</b>
+    
 | Key | Type | Mode | Meaning |
 | --- | --- | --- | --- |
 | `actualTime` | `int` | all | operating time in minutes |
@@ -157,9 +170,18 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 | `turnTimeFeeding` | `int` | all | unknown, maybe something for connection to autofeeder+ ? |
 | `version` | `int` | all | unknown |
 
+</details>
+
+
+
+
 # Sending Websocket Commands
 
-## External filters
+<details>
+<summary>
+<b>External filters</b>
+</summary>
+  
 <b>Turn off</b>
 
 `{"title":"SET_FILTER_PUMP","to":"<MAC_ADDRESS>","active":0,"from":"USER"}`
@@ -186,10 +208,17 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 
 `{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"<MAC_ADDRESS>","frequency":<NEW_VALUE>,"from":"USER"}`
 
-## Heaters
+</details>
+  
+<details>
+<summary>
+<b>Heaters</b>
+</summary>
 
 <b>Change any value</b>
 
 There will always be sent the same message
 
 `{"title":"SET_EHEATER_PARAM","to":"<MAC_ADDRESS>","mUnit":<NEW_VALUE>,"sollTemp":<NEW_VALUE>,"active":<NEW_VALUE>,"hystLow":<NEW_VALUE>,"hystHigh":<NEW_VALUE>,"offset":<NEW_VALUE>,"mode":<NEW_VALUE>,"sync":"<MAC_ADDRESS>","partnerName":"<NAME>","dayStartT":<NEW_VALUE>,"nightStartT":<NEW_VALUE>,"nReduce":<NEW_VALUE>,"from":"USER"}`
+
+</details>
