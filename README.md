@@ -48,68 +48,111 @@ Tha Data sent by EHEIM Digital devices comes via websocket. Here are 2 examples 
 <b>EHEIM thermocontrol+ e 300</b>
 ```
 {
-"title": "HEATER_DATA",
-"from": "<MAC_ADDRESS>",
-"mUnit": 0,
-"sollTemp": 260,
-"isTemp": 270,
-"hystLow": 5,
-"hystHigh": 5,
-"offset": 0,
-"active": 1,
-"isHeating": 0,
-"mode": 0,
-"sync": "",
-"partnerName": "",
-"dayStartT": 390,
-"nightStartT": 1080,
-"nReduce": -2,
-"alertState": 0,
-"to": "USER"
+  "active": 1,
+  "alertState": 0,
+  "dayStartT": 390,
+  "from": "<MAC_ADDRESS>",
+  "hystHigh": 5,
+  "hystLow": 5,
+  "isHeating": 0,
+  "isTemp": 268,
+  "mUnit": 0,
+  "mode": 0,
+  "nReduce": -2,
+  "nightStartT": 1080,
+  "offset": 0,
+  "partnerName": "",
+  "sollTemp": 260,
+  "sync": "",
+  "title": "HEATER_DATA",
+  "to": "USER"
 }
 ```
+### Explanation of values
+| Key | Type | Mode | Meaning |
+| --- | --- | --- | --- |
+| `active` | `int` | all | 0 = turned off, 1 = turned on |
+| `alertState` | `int` | all | 0 = no alert,  ? |
+| `dayStartT` | `int` | all | unknown |
+| `from` | `string` | all | MAC address of device |
+| `hystHigh` | `int` | all | unknown |
+| `hystLow` | `int` | all | unknown |
+| `isHeating` | `int` | all | 0 = not heating, 1 = heating |
+| `isTemp` | `int` | all | currently measured temperature, `value` / 10 = temperature |
+| `mUnit` | `int` | all | unknown |
+| `mode` | `int` | all | unknown |
+| `nReduce` | `int` | `smart` | reduction of temperature at night |
+| `nightStartT` | `int` | all | unknown |
+| `offset` | `int` | all | unknown |
+| `partnerName` | `string` | all | unknown |
+| `sollTemp` | `int` | all | target temperature, `value` / 10 = temperature |
+| `sync` | `string` | all | unknown |
+| `title` | `int` | all | = `HEATER_DATA` |
+| `to` | `string` | all | = `USER` |
 
 
 <b>EHEIM professionel 5e 700</b>
 ```
-[
-    {
-        "title": "FILTER_DATA",
-        "from": "<MAC_AdDRESS>",
-        "minFreq": 3500,
-        "maxFreq": 7500,
-        "maxFreqRglOff": 8000,
-        "freq": 7200,
-        "freqSoll": 7200,
-        "dfs": 1377,
-        "dfsFaktor": 1914,
-        "sollStep": 8,
-        "rotSpeed": 43,
-        "pumpMode": 1,
-        "filterActive": 1,
-        "runTime": 2178,
-        "actualTime": 2178,
-        "serviceHour": 4320,
-        "pm_dfs_soll_high": 10,
-        "pm_dfs_soll_low": 1,
-        "pm_time_high": 10,
-        "pm_time_low": 10,
-        "nm_dfs_soll_day": 10,
-        "nm_dfs_soll_night": 3,
-        "end_time_night_mode": 480,
-        "start_time_night_mode": 1080,
-        "version": 78,
-        "isEheim": 0,
-        "turnOffTime": 0,
-        "turnTimeFeeding": 0
-    },
-    {
-        "title": "MESH_NETWORK",
-        "from": "<MAC_AdDRESS>",
-        "clientList": [
-            "<MAC_AdDRESS>",
-            "<MAC_AdDRESS>"
-        ]
-    }
-]
+{
+  "actualTime": 2784,
+  "dfs": 1375,
+  "dfsFaktor": 2927,
+  "end_time_night_mode": 480,
+  "filterActive": 1,
+  "freq": 4700,
+  "freqSoll": 4700,
+  "from": "<MAC_ADDRESS>",
+  "isEheim": 0,
+  "maxFreq": 7500,
+  "maxFreqRglOff": 8000,
+  "minFreq": 3500,
+  "nm_dfs_soll_day": 9,
+  "nm_dfs_soll_night": 0,
+  "pm_dfs_soll_high": 7,
+  "pm_dfs_soll_low": 4,
+  "pm_time_high": 45,
+  "pm_time_low": 40,
+  "pumpMode": 1,
+  "rotSpeed": 28,
+  "runTime": 2784,
+  "serviceHour": 4320,
+  "sollStep": 8,
+  "start_time_night_mode": 1200,
+  "title": "FILTER_DATA",
+  "to": "USER",
+  "turnOffTime": 0,
+  "turnTimeFeeding": 0,
+  "version": 78
+}
 ```
+### Explanation of values
+| Key | Type | Mode | Meaning |
+| --- | --- | --- | --- |
+| `actualTime` | `int` | all | operating time in minutes |
+| `dfs` | `int` | all | unknown |
+| `dfsFaktor` | `int` | all | unknown |
+| `end_time_night_mode` | `int` | `bio` | endtime of night, `value` / 60 = time |
+| `filterActive` | `int` | all | 1 = running, 0 = stopped |
+| `freq` | `int` | all | current speed, `maxFreq` / `freq` * 100 = value in % |
+| `freqSoll` | `int` | all | target speed, `maxFreq` / `freqSoll` * 100 = value in % |
+| `from` | `string` | all | MAC address of device |
+| `isEheim` | `int` | all | unknown |
+| `maxFreq` | `int` | `constant`, `bio`, `pulse` | maximum possible freq in these modes (unsure) |
+| `maxFreqRglOff` | `int` | `manual` | maximum possible freq in this mode (100% power) (unsure) |
+| `minFreq` | `int` | `constant`, `bio`, `pulse` | minimum possible freq in these modes (unsure) |
+| `nm_dfs_soll_day` | `int` | `bio` | 0 - 10 power setting for day (0 = `minFreq`, 10 = ?) |
+| `nm_dfs_soll_night` | `int` | `bio` | 0 - 10 power setting for night (0 = `minFreq`, 10 = ?) |
+| `pm_dfs_soll_high` | `int` | `pulse` | 0 - 10 power setting for high phase (0 = `minFreq`, 10 = ?) |
+| `pm_dfs_soll_low` | `int` | `pulse` | 0 - 10 power setting for low phase (0 = `minFreq`, 10 = ?) |
+| `pm_time_high` | `int` | `pulse` | duration of high phase in s |
+| `pm_time_low` | `int` | `pulse` | duration of low phase in s |
+| `pumpMode` | `int` | all | manual = 16, pulse = 8, bio = 4, constant = 1, calibrating = 24577 or 8193 (other values have been seen as well) |
+| `rotSpeed` | `int` | all | unknown |
+| `serviceHour` | `int` | all | hours until next cleaning |
+| `sollStep` | `int` | all | unknown |
+| `start_time_night_mode` | `int` | `bio` | starttime of night, `value` / 60 = time |
+| `title` | `string` | all | = `FILTER_DATA` |
+| `to` | `string` | all | = `USER` |
+| `turnOffTime` | `int` | all | time in s until automatic turn on after turning off via webinterface |
+| `turnTimeFeeding` | `int` | all | unknown, maybe something for connection to autofeeder+ ? |
+| `version` | `int` | all | unknown |
