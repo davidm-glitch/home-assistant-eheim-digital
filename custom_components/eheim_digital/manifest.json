@@ -1,15 +1,14 @@
 {
-  "domain": "eheim_digital",
-  "name": "EHEIM Digital",
-  "codeowners": [
-    "@davidm-glitch"
-  ],
-  "config_flow": true,
-  "dependencies": [],
-  "documentation": "https://github.com/davidm-glitch/home-assistant-eheim-digital",
-  "homekit": {},
-  "iot_class": "local_push",
-  "requirements": [],
-  "ssdp": [],
-  "zeroconf": []
+    "domain": "eheim_digital",
+    "version": "0.2",
+    "name": "EHEIM Digital",
+    "codeowners": [
+        "@davidm-glitch"
+    ],
+    "config_flow": false,
+    "documentation": "https://github.com/davidm-glitch/home-assistant-eheim-digital",
+    "iot_class": "local_polling",
+    "requirements": [
+        "aiohttp"
+    ]
 }
