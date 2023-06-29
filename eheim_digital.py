@@ -8,7 +8,6 @@ import websockets
 import json
 import time
 import paho.mqtt.client as paho_mqtt_client
-from functools import partial
 
 config_file = os.path.exists('config.yaml')
 
@@ -40,9 +39,13 @@ else:
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 
 version = '0.0.1'
+mqtt_client = paho_mqtt_client.Client(BASE_TOPIC)
 FILTER_RECEIVED_MESSAGES = {"filter": "FILTER_DATA", "heater": "HEATER_DATA"}
 FILTER_REQUEST_MESSAGES = {"filter": "GET_FILTER_DATA", "heater": "GET_EHEATER_DATA"}
-mqtt_client = paho_mqtt_client.Client(BASE_TOPIC)
+FIRST_RECONNECT_DELAY = 1
+RECONNECT_RATE = 2
+MAX_RECONNECT_COUNT = 12
+MAX_RECONNECT_DELAY = 60
 
 
 def convert_filter_pump_mode_to_string(pump_mode) -> str:
@@ -67,43 +70,84 @@ def convert_boolean_to_string(boolean) -> str:
     return 'ON' if boolean else 'OFF'
 
 
-async def mqtt_connect(loop):
+def convert_string_to_int(string) -> int:
+    if string == 'ON':
+        return 1
+    return 0
+
+
+def mqtt_connect():
     """Connect to MQTT broker and set LWT"""
-    try:
-        mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-        mqtt_client.will_set(f'{BASE_TOPIC}/status', 'offline', 1, True)
-        mqtt_client.on_message = on_mqtt_message
-        mqtt_client.on_connect = on_mqtt_connect
-        mqtt_client.connect(MQTT_HOST, MQTT_PORT)
-        mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
-        await asyncio.sleep(1)  # Wait for MQTT connection to establish
-        await asyncio.get_event_loop().run_in_executor(None, mqtt_client.loop_forever)
-    except Exception as e:
-        logging.error(f'Unable to connect to MQTT broker: {e}')
-        sys.exit(1)
 
-    # Add a return statement to explicitly return a coroutine
-    return
+    def on_mqtt_connect(client, userdata, flags, rc):
+        if rc == 0:
+            logging.info("Connected to MQTT Broker!")
+        else:
+            logging.error("Failed to connect, return code %d\n", rc)
 
+    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    mqtt_client.will_set(f'{BASE_TOPIC}/status', 'offline', 1, True)
+    mqtt_client.on_disconnect = on_mqtt_disconnect
+    mqtt_client.on_message = on_mqtt_message
+    mqtt_client.connect(MQTT_HOST, MQTT_PORT)
+    mqtt_client.subscribe(f'{BASE_TOPIC}/set/#')
+    mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
 
-def on_mqtt_connect():
-    logging.debug('Connected to MQTT broker')
+    return mqtt_client
 
 
-def on_mqtt_message(msg):
-    """Listen for MQTT payloads"""
+def on_mqtt_disconnect(client, userdata, rc):
+    logging.info("Disconnected with result code: %s", rc)
+    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+    while reconnect_count < MAX_RECONNECT_COUNT:
+        logging.info("Reconnecting in %d seconds...", reconnect_delay)
+        time.sleep(reconnect_delay)
+
+        try:
+            client.reconnect()
+            logging.info("Reconnected successfully!")
+            return
+        except Exception as err:
+            logging.error("%s. Reconnect failed. Retrying...", err)
+
+        reconnect_delay *= RECONNECT_RATE
+        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+        reconnect_count += 1
+    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+
+
+def on_mqtt_message(client, userdata, msg):
+    device_type = msg.topic.split("/")[2]
+    command = msg.topic.split("/")[3]
+    payload = msg.payload.decode()
+    messages = []
+    for device in DEVICES:
+        if device['type'] == device_type:
+            if device_type == 'filter':
+                match command:
+                    case 'filter_running':
+                        messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % device['mac'], convert_string_to_int(payload))
+
+            if device_type == 'heater':
+                match command:
+                    case 'target_temperature':
+                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","from":"USER"}' % device['mac'], int(payload) * 10)
+
+    for message in messages:
+        websocket.send(message)
+        # TODO: Where to get websocket from???
 
 
 async def websocket_connect():
     url = f"ws://{DEVICE_HOST}/ws"
     async with websockets.connect(url) as websocket:
         task_listen = asyncio.create_task(websocket_listen(websocket))
-        task_send_messages = asyncio.create_task(websocket_send_messages(websocket))
+        task_send_data_request_messages = asyncio.create_task(websocket_send_data_request_messages(websocket))
 
-        await asyncio.gather(task_listen, task_send_messages)
+        await asyncio.gather(task_listen, task_send_data_request_messages)
 
 
-async def websocket_send_messages(websocket):
+async def websocket_send_data_request_messages(websocket):
     messages = []
     for device in DEVICES:
         messages.append(
@@ -113,6 +157,10 @@ async def websocket_send_messages(websocket):
         await asyncio.sleep(2)
         for message in messages:
             await websocket.send(message)
+
+
+async def websocket_send_command_message(websocket, message):
+    await websocket.send(message)
 
 
 async def websocket_listen(websocket):
@@ -126,26 +174,7 @@ async def websocket_listen(websocket):
             websocket_handle_message(messages)
 
 
-def websocket_publish(topic, message, qos: int = 0, retain: bool = False):
-    if not mqtt_client.is_connected():
-        try:
-            mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
-            mqtt_client.connect(MQTT_HOST, MQTT_PORT)
-            mqtt_client.loop_start()
-            time.sleep(1)  # Wait for MQTT connection to establish
-        except Exception as e:
-            logging.error(f'Unable to connect to MQTT broker: {e}')
-            return
-
-    result = mqtt_client.publish(BASE_TOPIC + topic, message, qos, retain)
-    status = result[0]
-    if status != 0:
-        print(f'Failed to send message to topic {BASE_TOPIC + topic}')
-
-
 def websocket_handle_message(data):
-    # TODO: check why next line is needed
-    websocket_publish('/status', 'online', 1, True)
     for device in DEVICES:
         if data['title'] == FILTER_RECEIVED_MESSAGES[device['type']]:
             if device['type'] == 'heater':
@@ -155,13 +184,13 @@ def websocket_handle_message(data):
                 current_temperature = round((int(data['isTemp']) / 10), 1)  # in °C
                 target_temperature = round((int(data['sollTemp']) / 10), 1)  # in °C
 
-                websocket_publish('/heater/is_active', is_active)
-                websocket_publish('/heater/alert', alert)
-                websocket_publish('/heater/is_heating', is_heating)
-                websocket_publish('/heater/current_temperature', current_temperature)
-                websocket_publish('/heater/target_temperature', target_temperature)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/is_active', is_active)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/alert', alert)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/is_heating', is_heating)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/current_temperature', current_temperature)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/target_temperature', target_temperature)
 
-                websocket_publish('/heater/status', 'online', 1, True)
+                mqtt_client.publish(f'{BASE_TOPIC}/heater/status', 'online', 1, True)
 
             if device['type'] == 'filter':
                 operating_time = round(int(data['actualTime']) / 60)  # in hours
@@ -176,31 +205,33 @@ def websocket_handle_message(data):
                 next_service = int(data['serviceHour'])  # in hours
                 turn_off_time = int(data['turnOffTime'])  # in seconds
 
-                websocket_publish('/filter/operating_time', operating_time)
-                websocket_publish('/filter/end_time_night_mode', end_time_night_mode)
-                websocket_publish('/filter/start_time_night_mode', start_time_night_mode)
-                websocket_publish('/filter/filter_running', filter_running)
-                websocket_publish('/filter/current_speed', current_speed)
-                websocket_publish('/filter/target_speed', target_speed)
-                websocket_publish('/filter/pump_mode', pump_mode)
-                websocket_publish('/filter/next_service', next_service)
-                websocket_publish('/filter/turn_off_time', turn_off_time)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/operating_time', operating_time)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/end_time_night_mode', end_time_night_mode)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/start_time_night_mode', start_time_night_mode)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/filter_running', filter_running)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/current_speed', current_speed)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/target_speed', target_speed)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/pump_mode', pump_mode)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/next_service', next_service)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/turn_off_time', turn_off_time)
 
-                websocket_publish('/filter/status', 'online', 1, True)
+                mqtt_client.publish(f'{BASE_TOPIC}/filter/status', 'online', 1, True)
 
 
 async def main():
+    print("main")
     loop = asyncio.get_event_loop()
 
     # Start the MQTT connection in a separate task
-    mqtt_task = partial(mqtt_connect, loop=loop)
-    mqtt_task = loop.run_in_executor(None, mqtt_task)
+    global mqtt_client
+    mqtt_client = mqtt_connect()
+    mqtt_client.loop_start()
 
     # Run the WebSocket connection
     websocket_task = loop.create_task(websocket_connect())
 
     # Wait for both tasks to complete
-    await asyncio.gather(mqtt_task, websocket_task)
+    await asyncio.gather(websocket_task)
 
 
 if __name__ == '__main__':
