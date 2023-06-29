@@ -20,7 +20,7 @@ Remove or change the entities to suit your setup.
 mqtt:
   switch:
     # HEATER
-    - command_topic: "eheim_digital/heater/active/set"
+    - command_topic: "eheim_digital/set/heater/is_active"
       name: EHEIM heater active
       icon: mdi:heat-wave
       device_class: switch
@@ -36,7 +36,7 @@ mqtt:
         availability_mode: all
 
     # FILTER
-    - command_topic: "eheim_digital/filter_running/set"
+    - command_topic: "eheim_digital/set/filter/filter_running"
       name: EHEIM filter running
       icon: mdi:air-filter
       device_class: switch
@@ -93,7 +93,7 @@ mqtt:
       <<: *eheim_filter_availability
     - name: EHEIM Filter next service
       state_topic: "eheim_digital/filter/next_service"
-      unit_of_measurement: "h"
+      device_class: date
       icon: mdi:wrench-clock
       <<: *eheim_filter_availability
     - name: EHEIM Filter turn off time
@@ -106,7 +106,7 @@ mqtt:
     # HEATER
 
     # FILTER
-    - command_topic: "eheim_digital/filter/pump_mode/set"
+    - command_topic: "eheim_digital/set/filter/pump_mode"
       state_topic: "eheim_digital/filter/pump_mode"
       icon: mdi:pump
       <<: *eheim_filter_availability
@@ -119,7 +119,7 @@ mqtt:
 
   number:
     # HEATER
-    - command_topic: "eheim_digital/heater/target_temperature/set"
+    - command_topic: "eheim_digital/set/heater/target_temperature"
       state_topic: "eheim_digital/heater/target_temperature"
       name: EHEIM Heater target temperature
       unit_of_measurement: °C
@@ -127,16 +127,36 @@ mqtt:
       min: 18
       max: 32
       step: 0.5
-      <<: *eheim_heater_availability
+      availability:
+        - topic: "eheim_digital/heater/is_active"
+          payload_available: "ON"
+          payload_not_available: "OFF"
+        - topic: "eheim_digital/status"
+          payload_available: "online"
+          payload_not_available: "offline"
+        - topic: "eheim_digital/heater/status"
+          payload_available: "online"
+          payload_not_available: "offline"
+      availability_mode: all
 
     # FILTER
-    - command_topic: "eheim_digital/filter/target_speed/set"
+    - command_topic: "eheim_digital/set/filter/target_speed"
       state_topic: "eheim_digital/filter/target_speed"
       name: EHEIM Filter target speed
       unit_of_measurement: "%"
       icon: mdi:speedometer
-      <<: *eheim_filter_availability
-      min: 0
+      availability:
+        - topic: "eheim_digital/filter/filter_running"
+          payload_available: "ON"
+          payload_not_available: "OFF"
+        - topic: "eheim_digital/status"
+          payload_available: "online"
+          payload_not_available: "offline"
+        - topic: "eheim_digital/filter/status"
+          payload_available: "online"
+          payload_not_available: "offline"
+      availability_mode: all
+      min: 44
       max: 100
       step: 1
 ```
