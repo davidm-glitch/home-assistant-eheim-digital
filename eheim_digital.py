@@ -47,7 +47,6 @@ RECONNECT_RATE = 2
 MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
 
-
 def convert_filter_pump_mode_to_string(pump_mode) -> str:
     match pump_mode:
         case 1:
@@ -126,21 +125,21 @@ def on_mqtt_message(client, userdata, msg):
             if device_type == 'filter':
                 match command:
                     case 'filter_running':
-                        messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % device['mac'], convert_string_to_int(payload))
+                        messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % (device['mac'], convert_string_to_int(payload)))
 
             if device_type == 'heater':
                 match command:
                     case 'target_temperature':
-                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","from":"USER"}' % device['mac'], int(payload) * 10)
+                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","from":"USER"}' % (device['mac'], int(float(payload) * 10)))
 
     for message in messages:
-        websocket.send(message)
-        # TODO: Where to get websocket from???
+        userdata[0].send(message)
 
 
 async def websocket_connect():
     url = f"ws://{DEVICE_HOST}/ws"
     async with websockets.connect(url) as websocket:
+        mqtt_client.user_data_set(websocket)
         task_listen = asyncio.create_task(websocket_listen(websocket))
         task_send_data_request_messages = asyncio.create_task(websocket_send_data_request_messages(websocket))
 
@@ -157,11 +156,6 @@ async def websocket_send_data_request_messages(websocket):
         await asyncio.sleep(2)
         for message in messages:
             await websocket.send(message)
-
-
-async def websocket_send_command_message(websocket, message):
-    await websocket.send(message)
-
 
 async def websocket_listen(websocket):
     while True:
