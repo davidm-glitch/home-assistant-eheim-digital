@@ -75,6 +75,7 @@ async def mqtt_connect(loop):
         mqtt_client.on_message = on_mqtt_message
         mqtt_client.on_connect = on_mqtt_connect
         mqtt_client.connect(MQTT_HOST, MQTT_PORT)
+        mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
         await asyncio.sleep(1)  # Wait for MQTT connection to establish
         await asyncio.get_event_loop().run_in_executor(None, mqtt_client.loop_forever)
     except Exception as e:
@@ -85,16 +86,12 @@ async def mqtt_connect(loop):
     return
 
 
-def on_mqtt_connect(mqtt_client):
-
-    logging.info('Connected to MQTT broker')
-
-    mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
+def on_mqtt_connect():
+    logging.debug('Connected to MQTT broker')
 
 
-def on_mqtt_message(mqtt_client, userdata, msg):
+def on_mqtt_message(msg):
     """Listen for MQTT payloads"""
-
 
 
 async def websocket_connect():
@@ -171,8 +168,10 @@ def websocket_handle_message(data):
                 end_time_night_mode = int(data['end_time_night_mode'])  # minutes after 00:00
                 start_time_night_mode = int(data['start_time_night_mode'])  # minutes after 00:00
                 filter_running = convert_boolean_to_string(bool(data['filterActive']))  # running / not running
-                current_speed = round((int(data['freq']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
-                target_speed = round((int(data['freqSoll']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
+                current_speed = round(
+                    (int(data['freq']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
+                target_speed = round(
+                    (int(data['freqSoll']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
                 pump_mode = convert_filter_pump_mode_to_string(int(data['pumpMode']))
                 next_service = int(data['serviceHour'])  # in hours
                 turn_off_time = int(data['turnOffTime'])  # in seconds
