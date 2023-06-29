@@ -7,6 +7,7 @@ import logging
 import websockets
 import json
 import time
+from datetime import datetime, timedelta
 import paho.mqtt.client as paho_mqtt_client
 
 config_file = os.path.exists('config.yaml')
@@ -74,6 +75,19 @@ def convert_string_to_int(string) -> int:
         return 1
     return 0
 
+def convert_values(value, leftMin, leftMax, rightMin, rightMax):
+    # Figure out how 'wide' each range is
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return int(rightMin + (valueScaled * rightSpan))
+
+def convert_hours_to_date(hours):
+    return (datetime.now() + timedelta(hours=hours)).strftime("%Y-%m-%d")
 
 def mqtt_connect():
     """Connect to MQTT broker and set LWT"""
@@ -88,6 +102,7 @@ def mqtt_connect():
     mqtt_client.will_set(f'{BASE_TOPIC}/status', 'offline', 1, True)
     mqtt_client.on_disconnect = on_mqtt_disconnect
     mqtt_client.on_message = on_mqtt_message
+    mqtt_client.on_connect = on_mqtt_connect
     mqtt_client.connect(MQTT_HOST, MQTT_PORT)
     mqtt_client.subscribe(f'{BASE_TOPIC}/set/#')
     mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
@@ -126,14 +141,31 @@ def on_mqtt_message(client, userdata, msg):
                 match command:
                     case 'filter_running':
                         messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % (device['mac'], convert_string_to_int(payload)))
+                    case 'pump_mode':
+                        if payload == 'constant':
+                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","from":"USER"}' % device['mac'])
+                        if payload == 'bio':
+                            messages.append('{"title":"START_NOCTURNAL_MODE","to":"%s","from":"USER"}' % device['mac'])
+                        if payload == 'pulse':
+                            messages.append('{"title":"START_FILTER_PULSE_MODE","to":"%s","from":"USER"}' % device['mac'])
+                        if payload == 'manual':
+                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","from":"USER"}' % device['mac'])
+                    case 'target_speed':
+                        if pump_mode == 'constant':
+                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","flow_rate":"%s","from":"USER"}' % (device['mac'], convert_values(int(payload), 44, 100, 0, 10)))
+                        if pump_mode == 'manual':
+                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","frequency":"%s","from":"USER"}' % (device['mac'], int(8000 * int(payload) / 100)))
 
             if device_type == 'heater':
                 match command:
+                    case 'is_active':
+                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","active": "%s","from":"USER"}' % (device['mac'], convert_string_to_int(payload)))
                     case 'target_temperature':
-                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","from":"USER"}' % (device['mac'], int(float(payload) * 10)))
+                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","active": 1,"from":"USER"}' % (device['mac'], int(float(payload) * 10)))
 
     for message in messages:
-        userdata[0].send(message)
+        asyncio.run(userdata.send(message))
+        print(message)
 
 
 async def websocket_connect():
@@ -187,6 +219,7 @@ def websocket_handle_message(data):
                 mqtt_client.publish(f'{BASE_TOPIC}/heater/status', 'online', 1, True)
 
             if device['type'] == 'filter':
+                global pump_mode
                 operating_time = round(int(data['actualTime']) / 60)  # in hours
                 end_time_night_mode = int(data['end_time_night_mode'])  # minutes after 00:00
                 start_time_night_mode = int(data['start_time_night_mode'])  # minutes after 00:00
@@ -196,7 +229,7 @@ def websocket_handle_message(data):
                 target_speed = round(
                     (int(data['freqSoll']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
                 pump_mode = convert_filter_pump_mode_to_string(int(data['pumpMode']))
-                next_service = int(data['serviceHour'])  # in hours
+                next_service = convert_hours_to_date(int(data['serviceHour']))  # in hours
                 turn_off_time = int(data['turnOffTime'])  # in seconds
 
                 mqtt_client.publish(f'{BASE_TOPIC}/filter/operating_time', operating_time)
@@ -213,7 +246,6 @@ def websocket_handle_message(data):
 
 
 async def main():
-    print("main")
     loop = asyncio.get_event_loop()
 
     # Start the MQTT connection in a separate task
