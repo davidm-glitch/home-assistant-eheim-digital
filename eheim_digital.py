@@ -48,6 +48,7 @@ RECONNECT_RATE = 2
 MAX_RECONNECT_COUNT = 12
 MAX_RECONNECT_DELAY = 60
 
+
 def convert_filter_pump_mode_to_string(pump_mode) -> str:
     match pump_mode:
         case 1:
@@ -75,6 +76,7 @@ def convert_string_to_int(string) -> int:
         return 1
     return 0
 
+
 def convert_values(value, leftMin, leftMax, rightMin, rightMax):
     # Figure out how 'wide' each range is
     leftSpan = leftMax - leftMin
@@ -86,8 +88,10 @@ def convert_values(value, leftMin, leftMax, rightMin, rightMax):
     # Convert the 0-1 range into a value in the right range.
     return int(rightMin + (valueScaled * rightSpan))
 
+
 def convert_hours_to_date(hours):
     return (datetime.now() + timedelta(hours=hours)).strftime("%Y-%m-%d")
+
 
 def mqtt_connect():
     """Connect to MQTT broker and set LWT"""
@@ -140,32 +144,44 @@ def on_mqtt_message(client, userdata, msg):
             if device_type == 'filter':
                 match command:
                     case 'filter_running':
-                        messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % (device['mac'], convert_string_to_int(payload)))
+                        messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % (
+                        device['mac'], convert_string_to_int(payload)))
                     case 'pump_mode':
                         if payload == 'constant':
-                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","from":"USER"}' % device['mac'])
+                            messages.append(
+                                '{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","from":"USER"}' % device[
+                                    'mac'])
                         if payload == 'bio':
                             messages.append('{"title":"START_NOCTURNAL_MODE","to":"%s","from":"USER"}' % device['mac'])
                         if payload == 'pulse':
-                            messages.append('{"title":"START_FILTER_PULSE_MODE","to":"%s","from":"USER"}' % device['mac'])
+                            messages.append(
+                                '{"title":"START_FILTER_PULSE_MODE","to":"%s","from":"USER"}' % device['mac'])
                         if payload == 'manual':
-                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","from":"USER"}' % device['mac'])
+                            messages.append(
+                                '{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","from":"USER"}' % device[
+                                    'mac'])
                     case 'target_speed':
                         if pump_mode == 'constant':
-                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","flow_rate":"%s","from":"USER"}' % (device['mac'], convert_values(int(payload), 44, 100, 0, 10)))
+                            messages.append(
+                                '{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","flow_rate":"%s","from":"USER"}' % (
+                                device['mac'], convert_values(int(payload), 44, 100, 0, 10)))
                         if pump_mode == 'manual':
-                            messages.append('{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","frequency":"%s","from":"USER"}' % (device['mac'], int(8000 * int(payload) / 100)))
+                            messages.append(
+                                '{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","frequency":"%s","from":"USER"}' % (
+                                device['mac'], int(8000 * int(payload) / 100)))
 
             if device_type == 'heater':
                 match command:
                     case 'is_active':
-                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","active": "%s","from":"USER"}' % (device['mac'], convert_string_to_int(payload)))
+                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","active": "%s","from":"USER"}' % (
+                        device['mac'], convert_string_to_int(payload)))
                     case 'target_temperature':
-                        messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","active": 1,"from":"USER"}' % (device['mac'], int(float(payload) * 10)))
+                        messages.append(
+                            '{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","active": 1,"from":"USER"}' % (
+                            device['mac'], int(float(payload) * 10)))
 
     for message in messages:
         asyncio.run(userdata.send(message))
-        print(message)
 
 
 async def websocket_connect():
@@ -188,6 +204,7 @@ async def websocket_send_data_request_messages(websocket):
         await asyncio.sleep(2)
         for message in messages:
             await websocket.send(message)
+
 
 async def websocket_listen(websocket):
     while True:
@@ -216,6 +233,7 @@ def websocket_handle_message(data):
                 mqtt_client.publish(f'{BASE_TOPIC}/heater/current_temperature', current_temperature)
                 mqtt_client.publish(f'{BASE_TOPIC}/heater/target_temperature', target_temperature)
 
+                # TODO: Send 'offline' status when device didn't send a message in a while
                 mqtt_client.publish(f'{BASE_TOPIC}/heater/status', 'online', 1, True)
 
             if device['type'] == 'filter':
@@ -242,6 +260,7 @@ def websocket_handle_message(data):
                 mqtt_client.publish(f'{BASE_TOPIC}/filter/next_service', next_service)
                 mqtt_client.publish(f'{BASE_TOPIC}/filter/turn_off_time', turn_off_time)
 
+                # TODO: Send 'offline' status when device didn't send a message in a while
                 mqtt_client.publish(f'{BASE_TOPIC}/filter/status', 'online', 1, True)
 
 
