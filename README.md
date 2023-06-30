@@ -203,3 +203,10 @@ mqtt:
 | climacontrol+ M | No | No | | |
 | climacontrol+ L | No | No | | |
 
+### UV-Sterilizer
+| Name | Integrated | Tested | Version Website | Version Server |
+| --- | --- | --- | --- | --- |
+| reeflexUV+e 500 | No | No | | |
+| reeflexUV+e 800 | No | No | | |
+| reeflexUV+e 1500 | No | No | | |
+| reeflexUV+e 2000 | No | No | | |
