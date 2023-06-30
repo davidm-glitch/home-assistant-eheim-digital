@@ -1,3 +1,7 @@
+# !!! WORK IN PROGRESS !!!
+!!! NOT YET FULLY FUNCTIONAL !!!
+
+
 # EHEIM Digital for Home Assistant
 
 ## Installation
@@ -165,7 +169,7 @@ mqtt:
 ### External filters
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
-| professionel 5e 350 | No | No | | |
+| professionel 5e 350 | No | No | 1.01.3 | 1.00.8 |
 | professionel 5e 450 | No | No | | |
 | professionel 5e 600T | No | No | | |
 | professionel 5e 700 | No | No | 1.01.3 | 1.00.8 |
