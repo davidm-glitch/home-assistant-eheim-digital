@@ -179,9 +179,12 @@ mqtt:
 | thermocontrol+ e 300 | No | No | 1.01.3 | 1.00.8 |
 
 ### Lighting control
+<sub>v2 can be identified by the yellow stripe on the device</sub>
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
 | LEDcontrol+e | No | No | | |
+| LEDcontrol+e v2 | No | No | 2.01.6 | 2.01.6 |
+
 
 ### CO2
 | Name | Integrated | Tested | Version Website | Version Server |
