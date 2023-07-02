@@ -10,10 +10,11 @@
 Install MQTT Broker in Home Assistant
 
 ### Step 2
-Install pyscript from HACS
+Adjust configuration part of the eheim_digital.py file.
 
 ### Step 3
-Adjust configuration part of the eheim_digital.py file.
+Run eheim_digital.py script somewhere.
+More information about that later... ;)
 
 ### Step 4
 Add this to your Home Assistant configuration.yaml
