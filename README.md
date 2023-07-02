@@ -55,6 +55,46 @@ mqtt:
             payload_not_available: "offline"
         availability_mode: all
 
+    # LED CONTROL
+    - command_topic: "eheim_digital/set/led_control/moon/moonlight_active"
+      name: EHEIM LED Control moonlight acitve
+      icon: mdi:weather-night
+      device_class: switch
+      state_topic: "eheim_digital/led_control/moon/moonlight_active"
+      <<: &eheim_led_control_availability
+        availability:
+          - topic: "eheim_digital/status"
+            payload_available: "online"
+            payload_not_available: "offline"
+          - topic: "eheim_digital/led_control/status"
+            payload_available: "online"
+            payload_not_available: "offline"
+        availability_mode: all
+    - command_topic: "eheim_digital/set/led_control/moon/moonlight_cycle"
+      name: EHEIM LED Control moonlight cycle
+      icon: mdi:chart-bell-curve-cumulative
+      device_class: switch
+      state_topic: "eheim_digital/led_control/moon/moonlight_cycle"
+      <<: *eheim_led_control_availability
+    - command_topic: "eheim_digital/set/led_control/cloud/cloud_active"
+      name: EHEIM LED Control cloud active
+      icon: mdi:cloud
+      device_class: switch
+      state_topic: "eheim_digital/led_control/cloud/cloud_active"
+      <<: *eheim_led_control_availability
+    - command_topic: "eheim_digital/set/led_control/acclimate/acclimate_active"
+      name: EHEIM LED Control acclimate active
+      icon: mdi:flower
+      device_class: switch
+      state_topic: "eheim_digital/led_control/acclimate/acclimate_active"
+      <<: *eheim_led_control_availability
+    - command_topic: "eheim_digital/set/led_control/acclimate/acclimate_pause"
+      name: EHEIM LED Control acclimate pause
+      icon: mdi:pause
+      device_class: switch
+      state_topic: "eheim_digital/led_control/acclimate/acclimate_pause"
+      <<: *eheim_led_control_availability
+
   binary_sensor:
     # HEATER
     - name: EHEIM Heater alert
@@ -105,6 +145,28 @@ mqtt:
       unit_of_measurement: "s"
       icon: mdi:timer
       <<: *eheim_filter_availability
+
+    # LED CONTROL
+    - name: EHEIM LED Control white brightness
+      state_topic: "eheim_digital/led_control/ccv/ccv_current_brightness_white"
+      unit_of_measurement: "%"
+      icon: mdi:format-color-fill
+      <<: *eheim_led_control_availability
+    - name: EHEIM LED Control plants gold brightness
+      state_topic: "eheim_digital/led_control/ccv/ccv_current_brightness_plants_gold"
+      unit_of_measurement: "%"
+      icon: mdi:format-color-fill
+      <<: *eheim_led_control_availability
+    - name: EHEIM LED Control royal blue brightness
+      state_topic: "eheim_digital/led_control/ccv/ccv_current_brightness_royal_blue"
+      unit_of_measurement: "%"
+      icon: mdi:format-color-fill
+      <<: *eheim_led_control_availability
+    - name: EHEIM LED Control brightness
+      state_topic: "eheim_digital/led_control/ccv/ccv_current_brightness"
+      unit_of_measurement: "%"
+      icon: mdi:format-color-fill
+      <<: *eheim_led_control_availability
 
   select:
     # HEATER
