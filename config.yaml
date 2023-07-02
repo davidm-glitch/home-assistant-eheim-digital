@@ -14,4 +14,5 @@ general:
       mac: # enter mac address
     - type: heater
       mac: # enter mac address
+  request_frequency: 10 # value in s for requesting new data from devices
   log_level: info
