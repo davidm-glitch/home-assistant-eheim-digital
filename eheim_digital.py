@@ -1,7 +1,5 @@
 """Custom eheim_digital Integration"""
-import os
 import sys
-import yaml
 import asyncio
 import logging
 import websockets
@@ -10,38 +8,37 @@ import time
 from datetime import datetime, timedelta
 import paho.mqtt.client as paho_mqtt_client
 
-config_file = os.path.exists('eheim_digital_config.yaml')
+"""         CONFIGURATION START             """
 
-if config_file:
-    with open('eheim_digital_config.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-        mqtt = config['mqtt']
-        gen = config['general']
-    MQTT_HOST = mqtt.get('host')
-    MQTT_PORT = mqtt.get('port', 1883)
-    MQTT_USER = mqtt.get('user')
-    MQTT_PASSWORD = mqtt.get('password')
-    MQTT_QOS = mqtt.get('qos', 1)
-    BASE_TOPIC = mqtt.get('base_topic', 'eheim_digital')
-    HOME_ASSISTANT = mqtt.get('home_assistant', True)
-    DEVICE_HOST = gen.get('host')
-    DEVICES = gen.get('devices')
-    WEBSOCKET_SEND_REQUEST_FREQUENCY = gen.get('request_frequency')
-    LOG_LEVEL = gen.get('log_level', 'INFO').upper()
-else:
-    MQTT_HOST = os.getenv('MQTT_HOST')
-    MQTT_PORT = int(os.getenv('MQTT_PORT', 1883))
-    MQTT_USER = os.getenv('MQTT_USER')
-    MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
-    MQTT_QOS = int(os.getenv('MQTT_QOS', 1))
-    BASE_TOPIC = os.getenv('BASE_TOPIC', 'eheim_digital')
-    HOME_ASSISTANT = os.getenv('HOME_ASSISTANT', True)
-    DEVICE_HOST = os.getenv('DEVICE_HOST')
-    DEVICES = os.getenv('DEVICES')
-    WEBSOCKET_SEND_REQUEST_FREQUENCY = os.getenv('REQUEST_FREQUENCY', 10)
-    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+MQTT_HOST = '192.168.1.1'                   # MQTT Broker
+MQTT_PORT = 1883                            # MQTT Port (default 1883)
+MQTT_USER = 'Eheim'                         # MQTT User
+MQTT_PASSWORD = '12345'                     # MQTT Password
+MQTT_QOS = 1                              
+BASE_TOPIC = 'eheim_digital'               
+HOME_ASSISTANT = True
+DEVICE_HOST = '192.168.1.100'               # IP of Eheim Master device
+DEVICES = [                                 # configure your devices as shown
+    {
+        'type': 'filter',
+        'mac': 'MAC'
+    },
+    {
+        'type': 'heater',
+        'mac': 'MAC'
+    },
+    {
+        'type': 'led_control',
+        'mac': 'MAC'
+    }
+]
+WEBSOCKET_SEND_REQUEST_FREQUENCY = 10      # Frequency of requesting device data (in s)
+LOG_LEVEL = 'DEBUG'
 
-version = '0.0.1'
+"""         CONFIGURATION END               """
+
+"""     DO NOT CHANGE ANYTHING BELOW        """
+
 mqtt_client = paho_mqtt_client.Client(BASE_TOPIC)
 FILTER_RECEIVED_MESSAGES = {
     "filter": {"FILTER_DATA"},
@@ -278,10 +275,14 @@ def websocket_handle_message(data):
                         case 'CCV':
                             ccv_current_brightness = data['currentValues']
 
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_white', ccv_current_brightness[0])
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_plants_gold', ccv_current_brightness[1])
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_royal_blue', ccv_current_brightness[2])
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness', int(ccv_current_brightness[0] + ccv_current_brightness[1] + ccv_current_brightness[2] / 3))
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_white',
+                                                ccv_current_brightness[0])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_plants_gold',
+                                                ccv_current_brightness[1])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_royal_blue',
+                                                ccv_current_brightness[2])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness', int(
+                                (ccv_current_brightness[0] + ccv_current_brightness[1] + ccv_current_brightness[2]) / 3))
 
                         case 'MOON':
                             max_moon_light = int(data['maxmoonlight'])
@@ -308,10 +309,14 @@ def websocket_handle_message(data):
 
                             mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_probability', cloud_probability)
                             mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_amount', cloud_max_amount)
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_intensity', cloud_min_intensity)
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_intensity', cloud_max_intensity)
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_duration', cloud_min_duration)
-                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_duration', cloud_max_duration)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_intensity',
+                                                cloud_min_intensity)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_intensity',
+                                                cloud_max_intensity)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_duration',
+                                                cloud_min_duration)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_duration',
+                                                cloud_max_duration)
                             mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_active', cloud_active)
 
                         case 'ACCLIMATE':
@@ -371,12 +376,7 @@ if __name__ == '__main__':
     else:
         logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s %(levelname)s: %(message)s')
 
-    logging.info(f'=== eheim_digital version {version} started ===')
-
-    if config_file:
-        logging.info('Configuration file found.')
-    else:
-        logging.info('No configuration file found; loading environment variables.')
+    logging.info(f'=== eheim_digital started ===')
 
     if DEVICES is None:
         logging.error('Please specify the devices in your config file.')
