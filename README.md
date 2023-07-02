@@ -13,7 +13,7 @@ Install MQTT Broker in Home Assistant
 Install pyscript from HACS
 
 ### Step 3
-Adjust config.yaml of the eheim_digital folder.
+Adjust configuration part of the eheim_digital.py file.
 
 ### Step 4
 Add this to your Home Assistant configuration.yaml
@@ -231,25 +231,25 @@ mqtt:
 ### External filters
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
-| professionel 5e 350 | No | No | 1.01.3 | 1.00.8 |
-| professionel 5e 450 | No | No | | |
-| professionel 5e 600T | No | No | | |
-| professionel 5e 700 | No | No | 1.01.3 | 1.00.8 |
+| professionel 5e 350 | Yes | No | 1.01.3 | 1.00.8 |
+| professionel 5e 450 | Yes | No | | |
+| professionel 5e 600T | Yes | No | | |
+| professionel 5e 700 | Yes | Yes | 1.01.3 | 1.00.8 |
 
 ### Heaters
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
-| thermocontrol+ e 150 | No | No | | |
-| thermocontrol+ e 200 | No | No | | |
-| thermocontrol+ e 250 | No | No | | |
-| thermocontrol+ e 300 | No | No | 1.01.3 | 1.00.8 |
+| thermocontrol+ e 150 | Yes | No | | |
+| thermocontrol+ e 200 | Yes | No | | |
+| thermocontrol+ e 250 | Yes | No | | |
+| thermocontrol+ e 300 | Yes | Yes | 1.01.3 | 1.00.8 |
 
 ### Lighting control
 <sub>v2 can be identified by the yellow stripe on the device</sub>
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
 | LEDcontrol+e | No | No | | |
-| LEDcontrol+e v2 | No | No | 2.01.6 | 2.01.6 |
+| LEDcontrol+e v2 | partially | Yes | 2.01.6 | 2.01.6 |
 
 
 ### CO2
