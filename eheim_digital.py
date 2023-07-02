@@ -26,6 +26,7 @@ if config_file:
     HOME_ASSISTANT = mqtt.get('home_assistant', True)
     DEVICE_HOST = gen.get('host')
     DEVICES = gen.get('devices')
+    WEBSOCKET_SEND_REQUEST_FREQUENCY = gen.get('request_frequency')
     LOG_LEVEL = gen.get('log_level', 'INFO').upper()
 else:
     MQTT_HOST = os.getenv('MQTT_HOST')
@@ -37,16 +38,27 @@ else:
     HOME_ASSISTANT = os.getenv('HOME_ASSISTANT', True)
     DEVICE_HOST = os.getenv('DEVICE_HOST')
     DEVICES = os.getenv('DEVICES')
+    WEBSOCKET_SEND_REQUEST_FREQUENCY = os.getenv('REQUEST_FREQUENCY', 10)
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 
 version = '0.0.1'
 mqtt_client = paho_mqtt_client.Client(BASE_TOPIC)
-FILTER_RECEIVED_MESSAGES = {"filter": "FILTER_DATA", "heater": "HEATER_DATA"}
-FILTER_REQUEST_MESSAGES = {"filter": "GET_FILTER_DATA", "heater": "GET_EHEATER_DATA"}
-FIRST_RECONNECT_DELAY = 1
-RECONNECT_RATE = 2
-MAX_RECONNECT_COUNT = 12
-MAX_RECONNECT_DELAY = 60
+FILTER_RECEIVED_MESSAGES = {
+    "filter": {"FILTER_DATA"},
+    "heater": {"HEATER_DATA"},
+    "led_control": {"CCV", "ACCLIMATE", "DYCL", "MOON", "CLOUD", "DSCRPTN"}
+}
+FILTER_REQUEST_MESSAGES = {
+    "filter": {"GET_FILTER_DATA"},
+    "heater": {"GET_EHEATER_DATA"},
+    "led_control": {"REQ_CCV", "GET_ACCL", "GET_DYCL", "GET_MOON", "GET_CLOUD", "GET_DSCRPTN"}
+}
+LAST_SEEN_TIMESTAMP = {
+    "filter": 0,
+    "heater": 0,
+    "led_control": 0
+}
+MQTT_RECONNECT_DELAY = 10  # in s
 
 
 def convert_filter_pump_mode_to_string(pump_mode) -> str:
@@ -77,16 +89,11 @@ def convert_string_to_int(string) -> int:
     return 0
 
 
-def convert_values(value, leftMin, leftMax, rightMin, rightMax):
-    # Figure out how 'wide' each range is
-    leftSpan = leftMax - leftMin
-    rightSpan = rightMax - rightMin
-
-    # Convert the left range into a 0-1 range (float)
-    valueScaled = float(value - leftMin) / float(leftSpan)
-
-    # Convert the 0-1 range into a value in the right range.
-    return int(rightMin + (valueScaled * rightSpan))
+def convert_values(value, left_min, left_max, right_min, right_max):
+    left_span = left_max - left_min
+    right_span = right_max - right_min
+    value_scaled = float(value - left_min) / float(left_span)
+    return int(right_min + (value_scaled * right_span))
 
 
 def convert_hours_to_date(hours):
@@ -94,8 +101,6 @@ def convert_hours_to_date(hours):
 
 
 def mqtt_connect():
-    """Connect to MQTT broker and set LWT"""
-
     def on_mqtt_connect(client, userdata, flags, rc):
         if rc == 0:
             logging.info("Connected to MQTT Broker!")
@@ -110,16 +115,18 @@ def mqtt_connect():
     mqtt_client.connect(MQTT_HOST, MQTT_PORT)
     mqtt_client.subscribe(f'{BASE_TOPIC}/set/#')
     mqtt_client.publish(f'{BASE_TOPIC}/status', 'online', 1, True)
+    for device in DEVICES:
+        mqtt_client.publish(f'{BASE_TOPIC}/{device["type"]}/status', 'offline', 1, True)
 
     return mqtt_client
 
 
 def on_mqtt_disconnect(client, userdata, rc):
     logging.info("Disconnected with result code: %s", rc)
-    reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
-    while reconnect_count < MAX_RECONNECT_COUNT:
-        logging.info("Reconnecting in %d seconds...", reconnect_delay)
-        time.sleep(reconnect_delay)
+    reconnect_count = 0
+    while True:
+        logging.info("Reconnecting in %d seconds...", MQTT_RECONNECT_DELAY)
+        time.sleep(MQTT_RECONNECT_DELAY)
 
         try:
             client.reconnect()
@@ -128,10 +135,8 @@ def on_mqtt_disconnect(client, userdata, rc):
         except Exception as err:
             logging.error("%s. Reconnect failed. Retrying...", err)
 
-        reconnect_delay *= RECONNECT_RATE
-        reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
         reconnect_count += 1
-    logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
+        logging.info("Reconnect failed after %s attempts. Exiting...", reconnect_count)
 
 
 def on_mqtt_message(client, userdata, msg):
@@ -145,7 +150,7 @@ def on_mqtt_message(client, userdata, msg):
                 match command:
                     case 'filter_running':
                         messages.append('{"title": "SET_FILTER_PUMP", "to": "%s", "active": "%s", "from": "USER"}' % (
-                        device['mac'], convert_string_to_int(payload)))
+                            device['mac'], convert_string_to_int(payload)))
                     case 'pump_mode':
                         if payload == 'constant':
                             messages.append(
@@ -164,21 +169,21 @@ def on_mqtt_message(client, userdata, msg):
                         if pump_mode == 'constant':
                             messages.append(
                                 '{"title":"START_FILTER_NORMAL_MODE_WITH_COMP","to":"%s","flow_rate":"%s","from":"USER"}' % (
-                                device['mac'], convert_values(int(payload), 44, 100, 0, 10)))
+                                    device['mac'], convert_values(int(payload), 44, 100, 0, 10)))
                         if pump_mode == 'manual':
                             messages.append(
                                 '{"title":"START_FILTER_NORMAL_MODE_WITHOUT_COMP","to":"%s","frequency":"%s","from":"USER"}' % (
-                                device['mac'], int(8000 * int(payload) / 100)))
+                                    device['mac'], int(8000 * int(payload) / 100)))
 
             if device_type == 'heater':
                 match command:
                     case 'is_active':
                         messages.append('{"title":"SET_EHEATER_PARAM","to":"%s","active": "%s","from":"USER"}' % (
-                        device['mac'], convert_string_to_int(payload)))
+                            device['mac'], convert_string_to_int(payload)))
                     case 'target_temperature':
                         messages.append(
                             '{"title":"SET_EHEATER_PARAM","to":"%s","sollTemp":"%s","active": 1,"from":"USER"}' % (
-                            device['mac'], int(float(payload) * 10)))
+                                device['mac'], int(float(payload) * 10)))
 
     for message in messages:
         asyncio.run(userdata.send(message))
@@ -186,7 +191,7 @@ def on_mqtt_message(client, userdata, msg):
 
 async def websocket_connect():
     url = f"ws://{DEVICE_HOST}/ws"
-    async with websockets.connect(url) as websocket:
+    async with websockets.connect(url, ping_interval=None) as websocket:
         mqtt_client.user_data_set(websocket)
         task_listen = asyncio.create_task(websocket_listen(websocket))
         task_send_data_request_messages = asyncio.create_task(websocket_send_data_request_messages(websocket))
@@ -197,11 +202,11 @@ async def websocket_connect():
 async def websocket_send_data_request_messages(websocket):
     messages = []
     for device in DEVICES:
-        messages.append(
-            '{"title":"%s","from":"USER","to":"%s"}' % (FILTER_REQUEST_MESSAGES[device['type']], device['mac']))
+        for request_message in FILTER_REQUEST_MESSAGES[device['type']]:
+            messages.append('{"title":"%s","from":"USER","to":"%s"}' % (request_message, device['mac']))
 
     while True:
-        await asyncio.sleep(2)
+        await asyncio.sleep(WEBSOCKET_SEND_REQUEST_FREQUENCY)
         for message in messages:
             await websocket.send(message)
 
@@ -219,64 +224,145 @@ async def websocket_listen(websocket):
 
 def websocket_handle_message(data):
     for device in DEVICES:
-        if data['title'] == FILTER_RECEIVED_MESSAGES[device['type']]:
-            if device['type'] == 'heater':
-                is_active = convert_boolean_to_string(bool(data['active']))  # active / inactive
-                alert = convert_boolean_to_string(bool(data['alertState']))  # active / inactive
-                is_heating = convert_boolean_to_string(bool(data['isHeating']))  # heating / waiting
-                current_temperature = round((int(data['isTemp']) / 10), 1)  # in °C
-                target_temperature = round((int(data['sollTemp']) / 10), 1)  # in °C
+        for received_message in FILTER_RECEIVED_MESSAGES[device['type']]:
+            if data['title'] == received_message:
+                if device['type'] == 'heater':
+                    LAST_SEEN_TIMESTAMP["heater"] = int(datetime.now().timestamp())
 
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/is_active', is_active)
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/alert', alert)
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/is_heating', is_heating)
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/current_temperature', current_temperature)
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/target_temperature', target_temperature)
+                    is_active = convert_boolean_to_string(bool(data['active']))  # active / inactive
+                    alert = convert_boolean_to_string(bool(data['alertState']))  # active / inactive
+                    is_heating = convert_boolean_to_string(bool(data['isHeating']))  # heating / waiting
+                    current_temperature = round((int(data['isTemp']) / 10), 1)  # in °C
+                    target_temperature = round((int(data['sollTemp']) / 10), 1)  # in °C
 
-                # TODO: Send 'offline' status when device didn't send a message in a while
-                mqtt_client.publish(f'{BASE_TOPIC}/heater/status', 'online', 1, True)
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/is_active', is_active)
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/alert', alert)
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/is_heating', is_heating)
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/current_temperature', current_temperature)
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/target_temperature', target_temperature)
 
-            if device['type'] == 'filter':
-                global pump_mode
-                operating_time = round(int(data['actualTime']) / 60)  # in hours
-                end_time_night_mode = int(data['end_time_night_mode'])  # minutes after 00:00
-                start_time_night_mode = int(data['start_time_night_mode'])  # minutes after 00:00
-                filter_running = convert_boolean_to_string(bool(data['filterActive']))  # running / not running
-                current_speed = round(
-                    (int(data['freq']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
-                target_speed = round(
-                    (int(data['freqSoll']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
-                pump_mode = convert_filter_pump_mode_to_string(int(data['pumpMode']))
-                next_service = convert_hours_to_date(int(data['serviceHour']))  # in hours
-                turn_off_time = int(data['turnOffTime'])  # in seconds
+                    mqtt_client.publish(f'{BASE_TOPIC}/heater/status', 'online', 1, True)
 
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/operating_time', operating_time)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/end_time_night_mode', end_time_night_mode)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/start_time_night_mode', start_time_night_mode)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/filter_running', filter_running)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/current_speed', current_speed)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/target_speed', target_speed)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/pump_mode', pump_mode)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/next_service', next_service)
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/turn_off_time', turn_off_time)
+                if device['type'] == 'filter':
+                    LAST_SEEN_TIMESTAMP["filter"] = int(datetime.now().timestamp())
+                    global pump_mode
+                    operating_time = round(int(data['actualTime']) / 60)  # in hours
+                    end_time_night_mode = int(data['end_time_night_mode'])  # minutes after 00:00
+                    start_time_night_mode = int(data['start_time_night_mode'])  # minutes after 00:00
+                    filter_running = convert_boolean_to_string(bool(data['filterActive']))  # running / not running
+                    current_speed = round(
+                        (int(data['freq']) / int(data['maxFreqRglOff']) if data['maxFreqRglOff'] else 0) * 100)  # in %
+                    target_speed = round(
+                        (int(data['freqSoll']) / int(data['maxFreqRglOff']) if data[
+                            'maxFreqRglOff'] else 0) * 100)  # in %
+                    pump_mode = convert_filter_pump_mode_to_string(int(data['pumpMode']))
+                    next_service = convert_hours_to_date(int(data['serviceHour']))  # in hours
+                    turn_off_time = int(data['turnOffTime'])  # in seconds
 
-                # TODO: Send 'offline' status when device didn't send a message in a while
-                mqtt_client.publish(f'{BASE_TOPIC}/filter/status', 'online', 1, True)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/operating_time', operating_time)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/end_time_night_mode', end_time_night_mode)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/start_time_night_mode', start_time_night_mode)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/filter_running', filter_running)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/current_speed', current_speed)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/target_speed', target_speed)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/pump_mode', pump_mode)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/next_service', next_service)
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/turn_off_time', turn_off_time)
+
+                    mqtt_client.publish(f'{BASE_TOPIC}/filter/status', 'online', 1, True)
+
+                if device['type'] == 'led_control':
+                    LAST_SEEN_TIMESTAMP["led_control"] = int(datetime.now().timestamp())
+
+                    match received_message:
+                        case 'CCV':
+                            ccv_current_brightness = data['currentValues']
+
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_white', ccv_current_brightness[0])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_plants_gold', ccv_current_brightness[1])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness_royal_blue', ccv_current_brightness[2])
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/ccv/ccv_current_brightness', int(ccv_current_brightness[0] + ccv_current_brightness[1] + ccv_current_brightness[2] / 3))
+
+                        case 'MOON':
+                            max_moon_light = int(data['maxmoonlight'])
+                            min_moon_light = int(data['minmoonlight'])
+                            moon_color = data['moonColor']
+                            moonlight_active = convert_boolean_to_string(bool(data['moonlightActive']))
+                            moonlight_cycle = convert_boolean_to_string(bool(data['moonlightCycle']))
+
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/moon/max_moon_light', max_moon_light)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/moon/min_moon_light', min_moon_light)
+                            # mqtt_client.publish(f'{BASE_TOPIC}/led_control/moon/moon_color', moon_color)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/moon/moonlight_active', moonlight_active)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/moon/moonlight_cycle', moonlight_cycle)
+
+                        case 'CLOUD':
+                            cloud_probability = int(data['probability'])
+                            cloud_max_amount = int(data['maxAmount'])
+                            cloud_min_intensity = int(data['minIntensity'])
+                            cloud_max_intensity = int(data['maxIntensity'])
+                            cloud_min_duration = int(data['minDuration'])
+                            cloud_max_duration = int(data['maxDuration'])
+                            cloud_active = convert_boolean_to_string(bool(data['cloudActive']))
+                            cloud_mode = int(data['mode'])  # TODO: What is that?
+
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_probability', cloud_probability)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_amount', cloud_max_amount)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_intensity', cloud_min_intensity)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_intensity', cloud_max_intensity)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_min_duration', cloud_min_duration)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_max_duration', cloud_max_duration)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/cloud/cloud_active', cloud_active)
+
+                        case 'ACCLIMATE':
+                            acclimate_duration = int(data['duration'])
+                            acclimate_intensity_reduction = int(data['intensityReduction'])
+                            acclimate_current_accl_day = int(data['currentAcclDay'])
+                            acclimate_active = convert_boolean_to_string(bool(data['acclActive']))
+                            acclimate_pause = convert_boolean_to_string(bool(data['duration']))
+
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/acclimate/acclimate_duration',
+                                                acclimate_duration)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/acclimate/acclimate_intensity_reduction',
+                                                acclimate_intensity_reduction)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/acclimate/acclimate_current_accl_day',
+                                                acclimate_current_accl_day)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/acclimate/acclimate_active',
+                                                acclimate_active)
+                            mqtt_client.publish(f'{BASE_TOPIC}/led_control/acclimate/acclimate_pause', acclimate_pause)
+
+                        # case 'DSCRPTN':
+                        # TODO
+                        # case 'DYCL':
+                        # TODO
+
+                    mqtt_client.publish(f'{BASE_TOPIC}/led_control/status', 'online', 1, True)
+
+
+async def websocket_last_seen():
+    while True:
+        await asyncio.sleep(5)
+        for device, timestamp in LAST_SEEN_TIMESTAMP.items():
+            current_timestamp = int(datetime.now().timestamp())
+            diff = current_timestamp - timestamp
+
+            if diff > 30:
+                mqtt_client.publish(f'{BASE_TOPIC}/{device}/status', 'offline', 1, True)
+                logging.info("device %s is offline" % device)
 
 
 async def main():
     loop = asyncio.get_event_loop()
 
-    # Start the MQTT connection in a separate task
     global mqtt_client
     mqtt_client = mqtt_connect()
     mqtt_client.loop_start()
 
-    # Run the WebSocket connection
     websocket_task = loop.create_task(websocket_connect())
 
-    # Wait for both tasks to complete
-    await asyncio.gather(websocket_task)
+    last_seen_task = loop.create_task(websocket_last_seen())
+
+    await asyncio.gather(websocket_task, last_seen_task)
 
 
 if __name__ == '__main__':
