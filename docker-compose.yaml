@@ -1,0 +1,5 @@
+eheim_digital:
+    container_name: eheim_digital
+    image: eheim_digital:latest
+    restart: unless-stopped
+    network_mode: host

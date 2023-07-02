@@ -1,0 +1,7 @@
+FROM python:3
+
+ADD eheim_digital.py /
+
+RUN pip install paho.mqtt websockets datetime
+
+CMD [ "python", "./eheim_digital.py" ]
