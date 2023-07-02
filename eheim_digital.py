@@ -10,10 +10,10 @@ import time
 from datetime import datetime, timedelta
 import paho.mqtt.client as paho_mqtt_client
 
-config_file = os.path.exists('config.yaml')
+config_file = os.path.exists('eheim_digital_config.yaml')
 
 if config_file:
-    with open('config.yaml', 'r') as file:
+    with open('eheim_digital_config.yaml', 'r') as file:
         config = yaml.safe_load(file)
         mqtt = config['mqtt']
         gen = config['general']
