@@ -1,0 +1,15 @@
+{
+  "domain": "eheim_digital",
+  "name": "EHEIM Digital",
+  "codeowners": [
+    "@davidm-glitch"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/davidm-glitch/home-assistant-eheim-digital",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/davidm-glitch/home-assistant-eheim-digital/issues",
+  "version": "0.0.1",
+  "requirements": [
+    "websockets"
+  ]
+}
