@@ -1,9 +1,9 @@
 """Switch platform for eheim_digital."""
 from __future__ import annotations
-
+from homeassistant.core import HomeAssistant
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 
-from .const import DOMAIN
+from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
 from .entity import IntegrationEheimDigitalEntity
 
@@ -16,7 +16,7 @@ ENTITY_DESCRIPTIONS = (
 )
 
 
-async def async_setup_entry(hass, entry, async_add_devices):
+async def async_setup_entry(hass:HomeAssistant, entry, async_add_devices):
     """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
@@ -41,9 +41,14 @@ class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity)
         self.entity_description = entity_description
 
     @property
-    def is_on(self) -> bool:
-        """Return true if the switch is on."""
-        return self.coordinator.data.get("title", "") == "foo"
+    def is_on(self):
+        if self.coordinator.data and isinstance(self.coordinator.data[0], dict):
+            return self.coordinator.data[0].get("title", "") == "foo"
+        else:
+            LOGGER.error("The coordinator data is not as expected")
+            return False
+
+
 
     async def async_turn_on(self, **_: any) -> None:
         """Turn on the switch."""
@@ -54,3 +59,14 @@ class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity)
         """Turn off the switch."""
         await self.coordinator.api.async_set_title("foo")
         await self.coordinator.async_request_refresh()
+
+    async def async_setup_entry(self, hass:HomeAssistant, entry, async_add_devices):
+        """Set up the switch platform."""
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        async_add_devices(
+            IntegrationEheimDigitalSwitch(
+                coordinator=coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in ENTITY_DESCRIPTIONS
+        )
