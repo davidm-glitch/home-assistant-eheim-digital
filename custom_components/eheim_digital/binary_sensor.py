@@ -6,8 +6,9 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
+from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN
+from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
 from .entity import IntegrationEheimDigitalEntity
 
@@ -20,7 +21,7 @@ ENTITY_DESCRIPTIONS = (
 )
 
 
-async def async_setup_entry(hass, entry, async_add_devices):
+async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
     """Set up the binary_sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
@@ -47,6 +48,9 @@ class IntegrationEheimDigitalBinarySensor(
         self.entity_description = entity_description
 
     @property
-    def is_on(self) -> bool:
-        """Return true if the binary_sensor is on."""
-        return self.coordinator.data.get("title", "") == "foo"
+    def is_on(self):
+        if self.coordinator.data and isinstance(self.coordinator.data[0], dict):
+            return self.coordinator.data[0].get("title", "") == "foo"
+
+        LOGGER.error("The coordinator data is not as expected")
+        return False

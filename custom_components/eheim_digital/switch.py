@@ -3,7 +3,7 @@ from __future__ import annotations
 from homeassistant.core import HomeAssistant
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 
-from .const import DOMAIN
+from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
 from .entity import IntegrationEheimDigitalEntity
 
@@ -41,9 +41,14 @@ class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity)
         self.entity_description = entity_description
 
     @property
-    def is_on(self) -> bool:
-        """Return true if the switch is on."""
-        return self.coordinator.data.get("title", "") == "foo"
+    def is_on(self):
+        if self.coordinator.data and isinstance(self.coordinator.data[0], dict):
+            return self.coordinator.data[0].get("title", "") == "foo"
+        else:
+            LOGGER.error("The coordinator data is not as expected")
+            return False
+
+
 
     async def async_turn_on(self, **_: any) -> None:
         """Turn on the switch."""

@@ -1,14 +1,10 @@
 """EHEIM API Client."""
 from __future__ import annotations
-
 import aiohttp
 import websockets
 import json
 
-
-
 from .const import LOGGER
-
 
 class IntegrationEheimDigitalApiClientError(Exception):
     """Exception to indicate a general API error."""
@@ -51,9 +47,15 @@ class IntegrationEheimDigitalApiClient:
             await self.connect()
 
         await self._websocket.send('{"title": "GET_MESH_NETWORK","to": "MASTER","from": "USER"}')
-        await self._websocket.send("WAAAAAAAAAH")
         response = await self._websocket.recv()
-        return json.loads(response)
+        data = json.loads(response)
+
+        # log each dictionary in the data list
+        for item in data:
+            LOGGER.info("Received API data: %s", item)
+
+        return data
+
 
     async def async_set_title(self, title: str) -> None:
         """Set the title in the API."""
