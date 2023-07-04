@@ -25,11 +25,7 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: ConfigEntry
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        client: IntegrationEheimDigitalApiClient,
-    ) -> None:
+    def __init__(self, hass: HomeAssistant, client: IntegrationEheimDigitalApiClient) -> None:
         """Initialize."""
         self.client = client
         super().__init__(

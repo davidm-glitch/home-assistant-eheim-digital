@@ -1,6 +1,6 @@
 """Switch platform for eheim_digital."""
 from __future__ import annotations
-
+from homeassistant.core import HomeAssistant
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 
 from .const import DOMAIN
@@ -16,7 +16,7 @@ ENTITY_DESCRIPTIONS = (
 )
 
 
-async def async_setup_entry(hass, entry, async_add_devices):
+async def async_setup_entry(hass:HomeAssistant, entry, async_add_devices):
     """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
@@ -54,3 +54,14 @@ class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity)
         """Turn off the switch."""
         await self.coordinator.api.async_set_title("foo")
         await self.coordinator.async_request_refresh()
+
+    async def async_setup_entry(self, hass:HomeAssistant, entry, async_add_devices):
+        """Set up the switch platform."""
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+        async_add_devices(
+            IntegrationEheimDigitalSwitch(
+                coordinator=coordinator,
+                entity_description=entity_description,
+            )
+            for entity_description in ENTITY_DESCRIPTIONS
+        )

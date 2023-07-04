@@ -1,13 +1,10 @@
 """EHEIM API Client."""
 from __future__ import annotations
 
-import asyncio
-import socket
-
 import aiohttp
-import async_timeout
-
 import websockets
+import json
+
 
 
 from .const import LOGGER
@@ -32,29 +29,35 @@ class IntegrationEheimDigitalApiClientAuthenticationError(
 class IntegrationEheimDigitalApiClient:
     """EHEIM API Client."""
 
-    def __init__(
-        self,
-        host: str,
-        session: aiohttp.ClientSession,
-    ) -> None:
+    def __init__(self, host: str, session: aiohttp.ClientSession) -> None:
         """EHEIM API Client."""
         self._host = host
         self._session = session
         self._url = f"ws://{host}/ws"
-        self._websocket = self.websocket_connect()
+        self._websocket = None
 
-    async def websocket_connect(self):
+    async def connect(self):
+        """Connect to the WebSocket server."""
         try:
-            websocket = websockets.sync.client.connect(self._url)
-            return websocket
-
-        except Exception as exception:
-            LOGGER.error(exception)
+            # pylint: disable=no-member
+            self._websocket = await websockets.connect(self._url)
+        except ConnectionError as exception:
+            LOGGER.error("Error: %s", exception)
+            raise IntegrationEheimDigitalApiClientCommunicationError("Unable to connect") from exception
 
     async def async_get_data(self) -> any:
         """Get data from the API."""
-        await self._websocket.send(
-            '{"title": "GET_MESH_NETWORK","to": "MASTER","from": "USER"}'
-        )
+        if self._websocket is None:
+            await self.connect()
+
+        await self._websocket.send('{"title": "GET_MESH_NETWORK","to": "MASTER","from": "USER"}')
         await self._websocket.send("WAAAAAAAAAH")
-        return await self._websocket.recv()
+        response = await self._websocket.recv()
+        return json.loads(response)
+
+    async def async_set_title(self, title: str) -> None:
+        """Set the title in the API."""
+        if self._websocket is None:
+            await self.connect()
+
+        await self._websocket.send(f'{{"title": "{title}","to": "MASTER","from": "USER"}}')

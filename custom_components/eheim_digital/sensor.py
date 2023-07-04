@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
-
+from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import EheimDigitalDataUpdateCoordinator
 from .entity import IntegrationEheimDigitalEntity
@@ -15,8 +15,7 @@ ENTITY_DESCRIPTIONS = (
     ),
 )
 
-
-async def async_setup_entry(hass, entry, async_add_devices):
+async def async_setup_entry(hass:HomeAssistant, entry, async_add_devices):
     """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
@@ -26,7 +25,6 @@ async def async_setup_entry(hass, entry, async_add_devices):
         )
         for entity_description in ENTITY_DESCRIPTIONS
     )
-
 
 class IntegrationEheimDigitalSensor(IntegrationEheimDigitalEntity, SensorEntity):
     """eheim_digital Sensor class."""
