@@ -5,7 +5,7 @@ from homeassistant.components.switch import SwitchEntity, SwitchEntityDescriptio
 
 from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
-from .entity import IntegrationEheimDigitalEntity
+from .entity import EheimDigitalEntity
 
 ENTITY_DESCRIPTIONS = (
     SwitchEntityDescription(
@@ -20,7 +20,7 @@ async def async_setup_entry(hass:HomeAssistant, entry, async_add_devices):
     """Set up the sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
-        IntegrationEheimDigitalSwitch(
+        EheimDigitalSwitch(
             coordinator=coordinator,
             entity_description=entity_description,
         )
@@ -28,7 +28,7 @@ async def async_setup_entry(hass:HomeAssistant, entry, async_add_devices):
     )
 
 
-class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity):
+class EheimDigitalSwitch(EheimDigitalEntity, SwitchEntity):
     """eheim_digital switch class."""
 
     def __init__(
@@ -64,7 +64,7 @@ class IntegrationEheimDigitalSwitch(IntegrationEheimDigitalEntity, SwitchEntity)
         """Set up the switch platform."""
         coordinator = hass.data[DOMAIN][entry.entry_id]
         async_add_devices(
-            IntegrationEheimDigitalSwitch(
+            EheimDigitalSwitch(
                 coordinator=coordinator,
                 entity_description=entity_description,
             )

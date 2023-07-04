@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
-from .entity import IntegrationEheimDigitalEntity
+from .entity import EheimDigitalEntity
 
 ENTITY_DESCRIPTIONS = (
     BinarySensorEntityDescription(
@@ -25,7 +25,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
     """Set up the binary_sensor platform."""
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_devices(
-        IntegrationEheimDigitalBinarySensor(
+        EheimDigitalBinarySensor(
             coordinator=coordinator,
             entity_description=entity_description,
         )
@@ -33,8 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
     )
 
 
-class IntegrationEheimDigitalBinarySensor(
-    IntegrationEheimDigitalEntity, BinarySensorEntity
+class EheimDigitalBinarySensor(
+    EheimDigitalEntity, BinarySensorEntity
 ):
     """eheim_digital binary_sensor class."""
 

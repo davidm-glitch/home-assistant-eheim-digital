@@ -6,8 +6,8 @@ from homeassistant.const import CONF_IP_ADDRESS, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import IntegrationEheimDigitalApiClient
-from .const import DOMAIN
+from .api import EheimDigitalApiClient
+from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
 
 PLATFORMS: list[Platform] = [
@@ -20,10 +20,11 @@ PLATFORMS: list[Platform] = [
 # https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up this integration using UI."""
+    LOGGER.debug('called function async_setup_entry')
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = coordinator = EheimDigitalDataUpdateCoordinator(
         hass=hass,
-        client=IntegrationEheimDigitalApiClient(
+        client=EheimDigitalApiClient(
             host=entry.data[CONF_IP_ADDRESS],
             session=async_get_clientsession(hass),
         ),
@@ -39,6 +40,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle removal of an entry."""
+    LOGGER.debug('called function async_unload_entry')
     if unloaded := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
     return unloaded
@@ -46,5 +48,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
+    LOGGER.debug('called function async_reload_entry')
     await async_unload_entry(hass, entry)
     await async_setup_entry(hass, entry)

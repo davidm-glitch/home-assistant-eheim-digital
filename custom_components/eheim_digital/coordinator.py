@@ -12,9 +12,9 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from .api import (
-    IntegrationEheimDigitalApiClient,
-    IntegrationEheimDigitalApiClientAuthenticationError,
-    IntegrationEheimDigitalApiClientError,
+    EheimDigitalApiClient,
+    EheimDigitalApiClientAuthenticationError,
+    EheimDigitalApiClientError,
 )
 from .const import DOMAIN, LOGGER
 
@@ -25,7 +25,7 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator):
 
     config_entry: ConfigEntry
 
-    def __init__(self, hass: HomeAssistant, client: IntegrationEheimDigitalApiClient) -> None:
+    def __init__(self, hass: HomeAssistant, client: EheimDigitalApiClient) -> None:
         """Initialize."""
         self.client = client
         super().__init__(
@@ -39,7 +39,7 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator):
         """Update data via library."""
         try:
             return await self.client.async_get_data()
-        except IntegrationEheimDigitalApiClientAuthenticationError as exception:
+        except EheimDigitalApiClientAuthenticationError as exception:
             raise ConfigEntryAuthFailed(exception) from exception
-        except IntegrationEheimDigitalApiClientError as exception:
+        except EheimDigitalApiClientError as exception:
             raise UpdateFailed(exception) from exception

@@ -8,10 +8,10 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from .api import (
-    IntegrationEheimDigitalApiClient,
-    IntegrationEheimDigitalApiClientAuthenticationError,
-    IntegrationEheimDigitalApiClientCommunicationError,
-    IntegrationEheimDigitalApiClientError,
+    EheimDigitalApiClient,
+    EheimDigitalApiClientAuthenticationError,
+    EheimDigitalApiClientCommunicationError,
+    EheimDigitalApiClientError,
 )
 from .const import DOMAIN, LOGGER
 
@@ -32,13 +32,13 @@ class EheimDigitalFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 await self._test_host_connection(
                     host=user_input[CONF_IP_ADDRESS],
                 )
-            except IntegrationEheimDigitalApiClientAuthenticationError as exception:
+            except EheimDigitalApiClientAuthenticationError as exception:
                 LOGGER.warning(exception)
                 _errors["base"] = "auth"
-            except IntegrationEheimDigitalApiClientCommunicationError as exception:
+            except EheimDigitalApiClientCommunicationError as exception:
                 LOGGER.error(exception)
                 _errors["base"] = "connection"
-            except IntegrationEheimDigitalApiClientError as exception:
+            except EheimDigitalApiClientError as exception:
                 LOGGER.exception(exception)
                 _errors["base"] = "unknown"
             else:
@@ -66,7 +66,7 @@ class EheimDigitalFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _test_host_connection(self, host: str) -> None:
         """Validate host connection."""
-        client = IntegrationEheimDigitalApiClient(
+        client = EheimDigitalApiClient(
             host=host,
             session=async_create_clientsession(self.hass),
         )

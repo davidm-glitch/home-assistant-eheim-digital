@@ -5,7 +5,7 @@ from homeassistant.components.sensor import SensorEntity, SensorEntityDescriptio
 from homeassistant.core import HomeAssistant
 from .const import DOMAIN, LOGGER
 from .coordinator import EheimDigitalDataUpdateCoordinator
-from .entity import IntegrationEheimDigitalEntity
+from .entity import EheimDigitalEntity
 
 ENTITY_DESCRIPTIONS = (
     SensorEntityDescription(
@@ -33,7 +33,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
             for entity_description in ENTITY_DESCRIPTIONS:
                 if entity_description.key.startswith(device_type):
                     entities.append(
-                        IntegrationEheimDigitalSensor(
+                        EheimDigitalSensor(
                             coordinator=coordinator,
                             entity_description=entity_description,
                             device=device,
@@ -47,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_devices):
 
 
 
-class IntegrationEheimDigitalSensor(IntegrationEheimDigitalEntity, SensorEntity):
+class EheimDigitalSensor(EheimDigitalEntity, SensorEntity):
     """eheim_digital Sensor class."""
 
     def __init__(

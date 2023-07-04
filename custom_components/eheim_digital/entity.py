@@ -8,7 +8,7 @@ from .const import DOMAIN, NAME, VERSION
 from .coordinator import EheimDigitalDataUpdateCoordinator
 
 
-class IntegrationEheimDigitalEntity(CoordinatorEntity):
+class EheimDigitalEntity(CoordinatorEntity):
     """EheimDigitalEntity class."""
 
     def __init__(self, coordinator: EheimDigitalDataUpdateCoordinator) -> None:
