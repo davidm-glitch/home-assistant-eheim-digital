@@ -2,7 +2,10 @@
 !!! NOT YET FULLY FUNCTIONAL !!!
 
 
-# EHEIM Digital for Home Assistant
+# EHEIM Digital integration for Home Assistant (unofficial) 
+
+![Alt Productfamily](https://eheim.com/media/image/2d/b5/2c/EHEIM-digital_banner-collage-alle-produkte_1980x1100.jpg)
+
 
 ## Installation
 
