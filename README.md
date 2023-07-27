@@ -259,7 +259,7 @@ mqtt:
 ### CO2
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
-| pHcontrol+e | No | No | | |
+| pHcontrol+e | Yes | No | | |
 
 ### Feeding
 | Name | Integrated | Tested | Version Website | Version Server |
