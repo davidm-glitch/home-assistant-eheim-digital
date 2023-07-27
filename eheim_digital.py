@@ -30,6 +30,10 @@ DEVICES = [                                 # configure your devices as shown
     {
         'type': 'led_control',
         'mac': 'MAC'
+    },
+    {
+        'type': 'ph_control',
+        'mac': 'MAC'
     }
 ]
 WEBSOCKET_SEND_REQUEST_FREQUENCY = 10      # Frequency of requesting device data (in s)
@@ -43,17 +47,20 @@ mqtt_client = paho_mqtt_client.Client(BASE_TOPIC)
 FILTER_RECEIVED_MESSAGES = {
     "filter": {"FILTER_DATA"},
     "heater": {"HEATER_DATA"},
-    "led_control": {"CCV", "ACCLIMATE", "DYCL", "MOON", "CLOUD", "DSCRPTN"}
+    "led_control": {"CCV", "ACCLIMATE", "DYCL", "MOON", "CLOUD", "DSCRPTN"},
+    "ph_control": {"PH_DATA"]}
 }
 FILTER_REQUEST_MESSAGES = {
     "filter": {"GET_FILTER_DATA"},
     "heater": {"GET_EHEATER_DATA"},
-    "led_control": {"REQ_CCV", "GET_ACCL", "GET_DYCL", "GET_MOON", "GET_CLOUD", "GET_DSCRPTN"}
+    "led_control": {"REQ_CCV", "GET_ACCL", "GET_DYCL", "GET_MOON", "GET_CLOUD", "GET_DSCRPTN"},
+    "ph_control": {"GET_PH_DATA"}
 }
 LAST_SEEN_TIMESTAMP = {
     "filter": 0,
     "heater": 0,
-    "led_control": 0
+    "led_control": 0,
+    "ph_control": 0
 }
 MQTT_RECONNECT_DELAY = 10  # in s
 
@@ -343,6 +350,27 @@ def websocket_handle_message(data):
 
                     mqtt_client.publish(f'{BASE_TOPIC}/led_control/status', 'online', 1, True)
 
+                if device['type'] == 'ph_control':
+                    LAST_SEEN_TIMESTAMP["ph_control"] = int(datetime.now().timestamp())
+
+                    acclimatization = convert_boolean_to_string(bool(data['acclimatization']))
+                    is_active = convert_boolean_to_string(bool(data['active']))
+                    alert = convert_boolean_to_string(bool(data['alertState']))
+                    current_ph = round((int(data['isPH']) / 10), 1)
+                    set_kh = int(data['kH'])
+                    target_ph = round((int(data['sollPH']) / 10), 1)
+                    is_active_valve = convert_boolean_to_string(bool(data['valveIsActive']))
+
+
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/acclimatization', acclimatization)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/is_active', is_active)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/alert', alert)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/current_ph', current_ph)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/set_kh', set_kh)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/target_ph', target_ph)
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/is_active_valve', is_active_valve)
+
+                    mqtt_client.publish(f'{BASE_TOPIC}/ph_control/status', 'online', 1, True)
 
 async def websocket_last_seen():
     while True:
