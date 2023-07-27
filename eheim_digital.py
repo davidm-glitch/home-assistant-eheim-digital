@@ -48,7 +48,7 @@ FILTER_RECEIVED_MESSAGES = {
     "filter": {"FILTER_DATA"},
     "heater": {"HEATER_DATA"},
     "led_control": {"CCV", "ACCLIMATE", "DYCL", "MOON", "CLOUD", "DSCRPTN"},
-    "ph_control": {"PH_DATA"]}
+    "ph_control": {"PH_DATA"}
 }
 FILTER_REQUEST_MESSAGES = {
     "filter": {"GET_FILTER_DATA"},
