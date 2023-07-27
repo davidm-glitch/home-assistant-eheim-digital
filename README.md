@@ -112,6 +112,37 @@ mqtt:
       icon: mdi:heat-wave
       <<: *eheim_heater_availability
 
+    # PH CONTROL
+    - name: EHEIM pH control acclimatization
+      state_topic: "eheim_digital/ph_control/acclimatization"
+      device_class: running
+      icon: mdi:sun-clock
+      <<: &eheim_ph_control_availability
+        availability:
+          - topic: "eheim_digital/status"
+            payload_available: "online"
+            payload_not_available: "offline"
+          - topic: "eheim_digital/ph_control/status"
+            payload_available: "online"
+            payload_not_available: "offline"
+        availability_mode: all
+    - name: EHEIM pH control active
+      state_topic: "eheim_digital/ph_control/is_active"
+      device_class: running
+      icon: mdi:toggle-switch
+      <<: *eheim_ph_control_availability
+    - name: EHEIM pH control alert
+      state_topic: "eheim_digital/ph_control/alert"
+      device_class: problem
+      icon: mdi:water-alert
+      <<: *eheim_ph_control_availability
+    - name: EHEIM pH control valve active
+      state_topic: "eheim_digital/ph_control/is_active_valve"
+      device_class: running
+      icon: mdi:pipe-valve
+      <<: *eheim_ph_control_availability
+
+
   sensor:
     # HEATER
     - name: EHEIM Heater current temperature
@@ -171,6 +202,19 @@ mqtt:
       unit_of_measurement: "%"
       icon: mdi:format-color-fill
       <<: *eheim_led_control_availability
+
+    # PH CONTROL
+    - name: EHEIM pH control current ph
+      state_topic: "eheim_digital/ph_control/current_ph"
+      icon: mdi:ph
+      <<: *eheim_ph_control_availability
+    - name: EHEIM pH control set kh
+      state_topic: "eheim_digital/ph_control/set_kh"
+      <<: *eheim_ph_control_availability
+    - name: EHEIM pH control target ph
+      state_topic: "eheim_digital/ph_control/target_ph"
+      icon: mdi:ph
+      <<: *eheim_ph_control_availability
 
   select:
     # HEATER
