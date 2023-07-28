@@ -13,13 +13,18 @@
 Install MQTT Broker in Home Assistant
 
 ### Step 2
-Adjust configuration part of the eheim_digital.py file.
+Install "Advanced SSH & Web Terminal" from the Add-On Store.
+Set a password inside configuration tab of the Add-On and save.
+Disable safe mode, enable show in sidebar and start the Add-On.
 
 ### Step 3
-Run eheim_digital.py script somewhere.
-More information about that later... ;)
+Inside your config folder create a new folder "eheim_digital".
+Copy the "eheim_digital.py" file into it. 
 
 ### Step 4
+Adjust configuration part of the eheim_digital.py file.
+
+### Step 5
 Add this to your Home Assistant configuration.yaml
 
 Remove or change the entities to suit your setup.
@@ -274,6 +279,35 @@ mqtt:
       max: 100
       step: 1
 ```
+
+### Step 6
+Restart Home Assistant
+
+### Step 7
+Open Terminal from the sidebar. Enter the following commands.
+
+`docker exec -it homeassistant bash`
+
+`cd eheim_digital`
+
+`python3 -m venv eheim_digital`
+
+`source eheim_digital/bin/activate`
+
+`pip install asyncio websockets paho-mqtt`
+
+`python eheim_digital.py`
+
+
+### Step 8
+Make sure that you enable safe mode of Terminal Add-On!
+
+### Step 9
+Script should run now and send data to Home Assistant
+
+
+--------------------------
+
 
 ## Compatible devices
 ### External filters
