@@ -303,7 +303,7 @@ mqtt:
 ### CO2
 | Name | Integrated | Tested | Version Website | Version Server |
 | --- | --- | --- | --- | --- |
-| pHcontrol+e | Yes | No | | |
+| pHcontrol+e | partially | No | 2.01.6 | 2.01.6 |
 
 ### Feeding
 | Name | Integrated | Tested | Version Website | Version Server |
