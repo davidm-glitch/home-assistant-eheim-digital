@@ -35,16 +35,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     # Access the devices from the coordinator
+    # Access the devices from the coordinator
     devices = coordinator.devices
 
     # Set up other platforms based on device types
     for device in devices:
-        mac_address = device.get("from")  # Assuming the MAC address is stored under the key "from"
-        version = device.get("version")
-        device_group = device.get("device_group")
-        device_name = device.get("device_name")
+        mac_address = device.from_mac # Accessing the from_mac property of the device object
+        version = device.version
+        device_group = device.device_group # Assuming that this property is defined in the EheimDevice class
+        device_name = device.device_name # Assuming that this property is defined in the EheimDevice class
         LOGGER.debug("INIT: Found device %s with version %s: Device Name: %s, Group: %s", mac_address, version, device_name, device_group)
-
 
     for platform in PLATFORMS:
         hass.async_create_task(

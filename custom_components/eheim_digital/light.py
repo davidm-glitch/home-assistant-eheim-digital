@@ -197,12 +197,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     devices = coordinator.devices
 
+
     entities = []
     for device in devices:
-        device_mac = device.get("from")
+        device_mac = device.from_mac
         if device.device_group == "LIGHTING":
             entities.append(EheimLedDevice(coordinator, device))
             LOGGER.debug("LIGHT: Added EheimLedDevice with MAC %s", device_mac)
+
 
     LOGGER.debug("LIGHT: Devices in coordinator: %s", devices)
     LOGGER.debug("LIGHT: Adding Light entities to Home Assistant")

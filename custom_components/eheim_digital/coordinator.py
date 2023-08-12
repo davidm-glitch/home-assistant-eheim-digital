@@ -23,7 +23,10 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator):
     @property
     def devices(self):
         """Return the devices."""
-        return self._devices
+        all_devices = []
+        for device_type, devices_list in self._devices.items(): #pylint: disable=unused-variable
+            all_devices.extend(devices_list)
+        return all_devices
 
 
     async def async_get_device_data(self, mac_address: str) -> dict:
@@ -53,7 +56,7 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator):
 
                 # Creating EheimDevice objects and adding them to the list
                 devices_list = []
-                for request_key, device_data in devices_response.items():
+                for request_key, device_data in devices_response.items(): #pylint: disable=unused-variable
                     device = EheimDevice(device_data)
                     devices_list.append(device)
 
