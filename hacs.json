@@ -1,4 +1,6 @@
 {
     "name": "EHEIM Digital",
+    "zip_release": true,
+    "filename": "eheim_digital.zip",
     "homeassistant": "2023.3.0"
 }
