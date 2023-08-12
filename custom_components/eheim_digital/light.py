@@ -3,15 +3,14 @@ from homeassistant.components.light import LightEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 from .coordinator import EheimDigitalDataUpdateCoordinator
-from .const import LOGGER, DOMAIN, DEVICE_GROUPS, DEVICE_VERSIONS
-
-
+from .const import LOGGER, DOMAIN
 
 class EheimLedDevice(LightEntity):
     """Representation of an EHEIM LED Control."""
 
     def __init__(self, coordinator: EheimDigitalDataUpdateCoordinator, device) -> None:
         """Initialize the LED control entity."""
+        self.device = device
         self.mac = device.from_mac
         self.ccv_current_brightness = None
         self.max_moon_light = None
@@ -33,19 +32,17 @@ class EheimLedDevice(LightEntity):
         self.coordinator = coordinator
         self._state = False
 
-        LOGGER.debug("MAC Address: %s", self.mac)
-        LOGGER.debug("Name: %s", self.name)
-        LOGGER.debug("EheimLedDevice with MAC %s initialized", self.mac)
+        LOGGER.debug("LIGHT: EheimLEDDevice with MAC %s initialized", self.mac)
 
     @property
     def name(self):
-        """Return the name of the LED control."""
-        return f"EHEIM LED {self.mac}"
+        """Return the name of the LED Device."""
+        return self.device.name
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self.mac
+        return self.device.from_mac
 
     @property
     def is_on(self):
@@ -79,6 +76,31 @@ class EheimLedDevice(LightEntity):
         self.moonlight_active = self.convert_boolean_to_string(moonlight_active)
         self.moonlight_cycle = self.convert_boolean_to_string(moonlight_cycle)
 
+    async def set_cloud_settings(self, cloud_probability, cloud_max_amount, cloud_min_intensity, cloud_max_intensity, cloud_min_duration, cloud_max_duration, cloud_active):
+        """Set cloud settings."""
+        data = {
+            "title": "CLOUD",
+            "to": self.mac,
+            "probability": cloud_probability,
+            "maxAmount": cloud_max_amount,
+            "minIntensity": cloud_min_intensity,
+            "maxIntensity": cloud_max_intensity,
+            "minDuration": cloud_min_duration,
+            "maxDuration": cloud_max_duration,
+            "cloudActive": cloud_active,
+            "mode": 2,
+            "from": "USER"
+        }
+        await self.coordinator.set_cloud_settings(data)
+        # Update entity attributes based on the new settings
+        self.cloud_probability = cloud_probability
+        self.cloud_max_amount = cloud_max_amount
+        self.cloud_min_intensity = cloud_min_intensity
+        self.cloud_max_intensity = cloud_max_intensity
+        self.cloud_min_duration = cloud_min_duration
+        self.cloud_max_duration = cloud_max_duration
+        self.cloud_active = self.convert_boolean_to_string(cloud_active)
+
     async def async_update(self):
         """Update the entity with data from the WebSocket."""
         # LOGGER.debug("Updating EheimLEDDevice for MAC: %s", self.mac)
@@ -91,53 +113,99 @@ class EheimLedDevice(LightEntity):
 
         # LOGGER.debug("EheimLedDevice updated: %s", self.__dict__)
 
-    def process_device_data(self, device_data)-> None:
+    async def request_channel_values(self):
+        """Request current channel values for the LED."""
+        response = await self.coordinator.request_channel_values({"to": self.mac, "title": "REQ_CCV", "from": "USER"})
+        if response:
+            self.process_device_data(response)
+
+    async def set_channel_values(self, channel_values: list[int]):
+        """Set current channel values for the LED."""
+        response = await self.coordinator.set_channel_values(self.mac, channel_values)
+        if response:
+            self.process_device_data(response)
+
+    async def request_acclimation_settings(self):
+        """Request acclimation settings for the LED."""
+        response = await self.coordinator.request_acclimation_settings(self.mac)
+        if response:
+            self.process_device_data(response)
+
+
+    async def set_acclimation_settings(self, duration, intensity_reduction, current_accl_day, accl_active, accl_pause):
+        """Set acclimation settings for the LED."""
+        response = await self.coordinator.set_acclimation_settings(self.mac, duration, intensity_reduction, current_accl_day, accl_active, accl_pause)
+        if response:
+            self.process_device_data(response)
+
+    async def request_dynamic_cycle_settings(self):
+        """Request dynamic cycle settings for the LED."""
+        response = await self.coordinator.request_dynamic_cycle_settings(self.mac)
+        if response:
+            self.process_device_data(response)
+
+    async def set_dynamic_cycle_settings(self, dawn_start, sunrise_end, sunset_start, dusk_end):
+        """Set dynamic cycle settings for the LED."""
+        response = await self.coordinator.set_dynamic_cycle_settings(self.mac, dawn_start, sunrise_end, sunset_start, dusk_end)
+        if response:
+            self.process_device_data(response)
+
+
+    def process_device_data(self, device_data: dict) -> None:
         """Process device-specific data and update entity attributes."""
-        self.ccv_current_brightness = device_data.get('currentValues')
-        self.max_moon_light = device_data.get('maxmoonlight')
-        self.min_moon_light = device_data.get('minmoonlight')
-        self.moonlight_active = self.convert_boolean_to_string(device_data.get('moonlightActive'))
-        self.moonlight_cycle = self.convert_boolean_to_string(device_data.get('moonlightCycle'))
-        self.cloud_probability = device_data.get('probability')
-        self.cloud_max_amount = device_data.get('maxAmount')
-        self.cloud_min_intensity = device_data.get('minIntensity')
-        self.cloud_max_intensity = device_data.get('maxIntensity')
-        self.cloud_min_duration = device_data.get('minDuration')
-        self.cloud_max_duration = device_data.get('maxDuration')
-        self.cloud_active = self.convert_boolean_to_string(device_data.get('cloudActive'))
-        self.acclimate_duration = device_data.get('duration')
-        self.acclimate_intensity_reduction = device_data.get('intensityReduction')
-        self.acclimate_current_accl_day = device_data.get('currentAcclDay')
-        self.acclimate_active = self.convert_boolean_to_string(device_data.get('acclActive'))
-        self.acclimate_pause = self.convert_boolean_to_string(device_data.get('acclPause'))
-        LOGGER.debug("Proccessed device data for MAC: %s", self.mac)
+        title = device_data.get("title")
+
+        # Handle channel values
+        if title == "REQ_CCV":
+            self.ccv_current_brightness = device_data.get('currentValues')
+
+        # Handle moonlight settings
+        elif title == "GET_MOON":
+            self.max_moon_light = device_data.get('maxmoonlight')
+            self.min_moon_light = device_data.get('minmoonlight')
+            self.moonlight_active = self.convert_boolean_to_string(device_data.get('moonlightActive'))
+            self.moonlight_cycle = self.convert_boolean_to_string(device_data.get('moonlightCycle'))
+
+        # Handle cloud settings
+        elif title == "GET_CLOUD":
+            self.cloud_probability = device_data.get('probability')
+            self.cloud_max_amount = device_data.get('maxAmount')
+            self.cloud_min_intensity = device_data.get('minIntensity')
+            self.cloud_max_intensity = device_data.get('maxIntensity')
+            self.cloud_min_duration = device_data.get('minDuration')
+            self.cloud_max_duration = device_data.get('maxDuration')
+            self.cloud_active = self.convert_boolean_to_string(device_data.get('cloudActive'))
+
+        # Handle acclimation settings
+        elif title == "GET_ACCL":
+            self.acclimate_duration = device_data.get('duration')
+            self.acclimate_intensity_reduction = device_data.get('intensityReduction')
+            self.acclimate_current_accl_day = device_data.get('currentAcclDay')
+            self.acclimate_active = self.convert_boolean_to_string(device_data.get('acclActive'))
+            self.acclimate_pause = self.convert_boolean_to_string(device_data.get('acclPause'))
 
     @staticmethod
     def convert_boolean_to_string(boolean) -> str:
         """Convert a boolean value to a string."""
         return 'ON' if boolean else 'OFF'
 
-def get_device_group_for_version(version: int) -> str:
-    """Map version number to device group."""
-    for group, versions in DEVICE_GROUPS.items():
-        if DEVICE_VERSIONS[version] in versions:
-            return group
-    return None
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
     """Set up the EHEIM Digital light platform from a config entry."""
-    LOGGER.debug("Setting up EHEIM Digital light platform")
+    LOGGER.debug("LIGHT: Setting up EHEIM Digital light platform")
     coordinator = hass.data[DOMAIN][entry.entry_id]["coordinator"]
 
     devices = coordinator.devices
 
     entities = []
-    for mac_address, device in devices.items():
-        if get_device_group_for_version(device.version) == "LIGHTING":
+    for device in devices:
+        device_mac = device.get("from")
+        if device.device_group == "LIGHTING":
             entities.append(EheimLedDevice(coordinator, device))
-            LOGGER.debug("Added EheimLedDevice with MAC %s", mac_address)
+            LOGGER.debug("LIGHT: Added EheimLedDevice with MAC %s", device_mac)
 
-    LOGGER.debug("Adding Light entities to Home Assistant")
+    LOGGER.debug("LIGHT: Devices in coordinator: %s", devices)
+    LOGGER.debug("LIGHT: Adding Light entities to Home Assistant")
     async_add_entities(entities)
 
 

@@ -1,20 +1,11 @@
 """Adds config flow for eheim_digital."""
 from __future__ import annotations
-
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_IP_ADDRESS
-from homeassistant.helpers import selector
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
-
-from .api import (
-    EheimDigitalApiClient,
-    EheimDigitalApiClientAuthenticationError,
-    EheimDigitalApiClientCommunicationError,
-    EheimDigitalApiClientError,
-)
 from .const import DOMAIN, LOGGER
 
+from .websocket import (EheimDigitalWebSocketClient,EheimDigitalWebSocketClientCommunicationError)
 
 class EheimDigitalFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Config flow for eheim_digital."""
@@ -26,48 +17,41 @@ class EheimDigitalFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: dict | None = None,
     ) -> config_entries.FlowResult:
         """Handle a flow initialized by the user."""
-        _errors = {}
+        LOGGER.debug("User step initiated")
+        errors = {}
         if user_input is not None:
+            LOGGER.debug("User input received: %s", user_input)
             try:
                 await self._test_host_connection(
-                    host=user_input[CONF_IP_ADDRESS],
+                    host=user_input[CONF_IP_ADDRESS]
                 )
-            except EheimDigitalApiClientAuthenticationError as exception:
-                LOGGER.warning(exception)
-                _errors["base"] = "auth"
-            except EheimDigitalApiClientCommunicationError as exception:
-                LOGGER.error(exception)
-                _errors["base"] = "connection"
-            except EheimDigitalApiClientError as exception:
-                LOGGER.exception(exception)
-                _errors["base"] = "unknown"
-            else:
+                LOGGER.debug("Connection successful, creating entry")
                 return self.async_create_entry(
                     title=user_input[CONF_IP_ADDRESS],
-                    data=user_input,
+                    data=user_input
                 )
+            except EheimDigitalWebSocketClientCommunicationError:
+                LOGGER.warning("Communication error with host")
+                errors["base"] = "communication_error"
+
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_IP_ADDRESS): str,
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_IP_ADDRESS,
-                        default=(user_input or {}).get(CONF_IP_ADDRESS),
-                    ): selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            type=selector.TextSelectorType.TEXT
-                        ),
-                    )
-                }
-            ),
-            errors=_errors,
+            data_schema=schema,
+            errors=errors,
         )
 
     async def _test_host_connection(self, host: str) -> None:
-        """Validate host connection."""
-        client = EheimDigitalApiClient(
-            host=host,
-            session=async_create_clientsession(self.hass),
-        )
-        await client.async_get_data()
+        """Test the connection to the given host."""
+        LOGGER.debug("Testing host connection: %s", host)
+        websocket_client = EheimDigitalWebSocketClient(host)
+        await websocket_client.connect_websocket()
+        LOGGER.debug("Connected to WebSocket, testing further if needed")
+        # Perform other tests here if needed
+        await websocket_client.disconnect_websocket()
+        LOGGER.debug("Host connection test completed")
