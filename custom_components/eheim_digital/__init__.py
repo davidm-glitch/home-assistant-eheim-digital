@@ -3,74 +3,63 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_IP_ADDRESS
 
-from .const import DOMAIN, LOGGER, PLATFORMS
+from homeassistant.helpers import device_registry as dr
+
+
+
+from .const import DOMAIN, LOGGER, PLATFORMS, UPDATE_INTERVAL
 from .websocket import EheimDigitalWebSocketClient
 from .coordinator import EheimDigitalDataUpdateCoordinator
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up the EHEIM Digital integration."""
+    """Set up the EHEIM Digital integration from a config entry."""
     LOGGER.debug("INIT: Setting up EHEIM Digital integration")
+
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
 
-    websocket_client = EheimDigitalWebSocketClient(entry.data[CONF_IP_ADDRESS])
 
-    # Fetch devices once on startup
+    websocket_client = EheimDigitalWebSocketClient(entry.data[CONF_IP_ADDRESS])
     devices = await websocket_client.fetch_devices()
 
-    # Create the coordinator with the fetched devices
-    # Create the coordinator with the fetched devices
-    coordinator = EheimDigitalDataUpdateCoordinator(hass, websocket_client, devices)
+    coordinator = EheimDigitalDataUpdateCoordinator(hass, entry, websocket_client)
+    coordinator.devices = devices
+
     await coordinator.async_config_entry_first_refresh()
 
-    # Store the coordinator in hass.data
-    if entry.entry_id not in hass.data[DOMAIN]:
-        hass.data[DOMAIN][entry.entry_id] = {}
+    # Register devices with Home Assistant's device registry
+    device_registry = dr.async_get(hass)
 
-    hass.data[DOMAIN][entry.entry_id]["coordinator"] = coordinator
-
-
-    if not coordinator.last_update_success:
-        LOGGER.debug("INIT: Initial data fetch failed")
-        return False
-
-    # Access the devices from the coordinator
-    # Access the devices from the coordinator
-    devices = coordinator.devices
-
-    # Set up other platforms based on device types
     for device in devices:
-        mac_address = device.from_mac # Accessing the from_mac property of the device object
-        version = device.version
-        device_group = device.device_group # Assuming that this property is defined in the EheimDevice class
-        device_name = device.device_name # Assuming that this property is defined in the EheimDevice class
-        LOGGER.debug("INIT: Found device %s with version %s: Device Name: %s, Group: %s", mac_address, version, device_name, device_group)
-
-    for platform in PLATFORMS:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, platform)
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, device.mac)},
+            name=device.name,
+            manufacturer="EHEIM",
+            model=device.model,
+            sw_version=device.version,
         )
-    LOGGER.debug("INIT: Forwarding entry setup for %s platform", platform)
+        #LOGGER.debug("INIT: Registered device Name: %s, MAC: %s, Type: %s, Version: %s",
+        #             device.name, device.mac, device.device_type, device.version)
 
+    entry.async_on_unload(entry.add_update_listener(update_listener))
 
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    LOGGER.debug("INIT: EHEIM Digital integration setup complete")
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    LOGGER.debug("INIT: Unloading EHEIM Digital integration")
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
-        # Disconnect the WebSocket
-        LOGGER.debug("INIT: Disconnecting WebSocket")
-        websocket_client = EheimDigitalWebSocketClient(entry.data[CONF_IP_ADDRESS])
-        await websocket_client.disconnect_websocket()
-
-        # Remove data from hass.data
-        LOGGER.debug("INIT: Removing data from hass.data")
         hass.data[DOMAIN].pop(entry.entry_id)
 
-    LOGGER.debug("INIT: EHEIM Digital integration unloaded")
     return unload_ok
+
+async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Update listener."""
+    await hass.config_entries.async_reload(entry.entry_id)
+

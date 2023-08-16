@@ -7,7 +7,7 @@ class EheimDevice:
     def __init__(self, data: dict) -> None:
         """EHEIM Device initialization."""
         self._title = data.get("title")
-        self._from_mac = data.get("from")
+        self._mac = data.get("from")
         self._name = data.get("name")
         self._aq_name = data.get("aqName")
         self._mode = data.get("mode")  # Optional
@@ -35,17 +35,24 @@ class EheimDevice:
         self._sys_led = data.get("sysLED")  # Optional
 
 
-        LOGGER.debug("DEVICES: EheimDevice %s: with MAC: %s initialized", self._name, self._from_mac)
+        LOGGER.debug("DEVICES: EheimDevice %s: with MAC: %s initialized", self.name, self._mac)
+        LOGGER.debug("DEVICES: Initializing with data: %s", data)
+
 
     @property
     def name(self):
         """Return the name of the device."""
-        return f"EHEIM {self._name} {self.from_mac}"
+        return f"EHEIM {self._name}"
+
+    @property
+    def model(self):
+        """Return the model of the device."""
+        return f"{self.device_type}"
 
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self.from_mac
+        return self.mac
 
     @property
     def title(self) -> str:
@@ -53,9 +60,9 @@ class EheimDevice:
         return self._title
 
     @property
-    def from_mac(self) -> str:
+    def mac(self) -> str:
         """MAC address of the device."""
-        return self._from_mac
+        return self._mac
 
     @property
     def device_name(self) -> str:
@@ -199,6 +206,13 @@ class EheimDevice:
 
     def __repr__(self):
         """String representation of the EheimDevice."""
-        return f"EheimDevice(title={self._title}, name={self.name}, from_mac={self._from_mac})"
+        #return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, device_type={self.device_type}, device_group={self.device_group})"
+        return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, aqname={self.aq_name}, mode={self.mode}, version={self._version}, language={self._language}, timezone={self._timezone}, tankid={self._tank_id}, dst={self._dst}, tankconfig={self._tank_config}, power={self._power}, netmode={self._net_mode}, host={self._host}, groupid={self._group_id}, meshing={self._meshing}, firststart={self._first_start}, remote={self._remote}, revision={self._revision}, latestavailablerevision={self._latest_available_revision}, firmwareavailable={self._firmware_available}, emailaddress={self._email_address}, livetime={self._live_time}, username={self._user_name}, unit={self._unit}, demouse={self._demo_use}, sysled={self._sys_led}, device_type={self.device_type}, device_group={self.device_group})"
 
-
+    def update(self, data: dict) -> None:
+        """Update the device with new data."""
+        for key, value in data.items():
+            attribute_name = f"_{key.lower()}"
+            if hasattr(self, attribute_name):
+                setattr(self, attribute_name, value)
+        LOGGER.debug("DEVICES: Updated EheimDevice %s: with data: %s", self.name, data)

@@ -5,7 +5,7 @@ import asyncio
 from typing import Dict
 from .devices import EheimDevice
 
-from .const import LOGGER, DEVICE_GROUPS, REQUEST_MESSAGES
+from .const import LOGGER
 
 class EheimDigitalWebSocketClientError(Exception):
     """Exception to indicate a general WebSocket error."""
@@ -25,12 +25,27 @@ class EheimDigitalWebSocketClient:
         self._client_list = None
 
     async def connect_websocket(self) -> None:
-        """Connect to the WebSocket server."""
+        """Connect to the WebSocket server and process initial messages."""
         LOGGER.debug('WEBSOCKET: Called function connect_websocket')
         try:
             self._websocket = await websockets.connect(self._url) #pylint: disable=all
+
+            # Process the first two initial messages
+            for _ in range(2):
+                initial_response = await self._websocket.recv()
+                messages = json.loads(initial_response)
+                # LOGGER.debug("WEBSOCKET: Initial WebSocket Response: %s", messages)
+
+                # Extracting and storing the client list
+                for message in messages:
+                    if "clientList" in message:
+                        self._client_list = list(set(message["clientList"]))
+                        break
+
+                LOGGER.debug("WEBSOCKET: Client List: %s", self._client_list)
         except Exception as ex:
             raise EheimDigitalWebSocketClientCommunicationError(f"Failed to connect to WebSocket: {ex}") from ex
+
 
     async def disconnect_websocket(self) -> None:
         """Disconnect from the WebSocket server."""
@@ -38,32 +53,6 @@ class EheimDigitalWebSocketClient:
             await self._websocket.close()
             self._websocket = None
 
-    async def fetch_client_list(self) -> list[str]:
-        """Fetch client list information from the WebSocket."""
-        LOGGER.debug('WEBSOCKET: Called function fetch_client_liist')
-        if self._websocket is None:
-            await self.connect_websocket()
-
-        # Sending a request message to get client list information (modify as needed)
-        request_message = {"title": "GET_CLIENT_LIST", "from": "USER"}
-        await self._websocket.send(json.dumps(request_message))
-        LOGGER.debug("WEBSOCKET: Client List Request: %s", request_message)
-
-        # Waiting for the response
-        response = await self._websocket.recv()
-        messages = json.loads(response)
-        LOGGER.debug("WEBSOCKET: Client List Response: %s", messages)
-
-        # Assuming that the client list is inside each message in the list
-        client_list = []
-        for message in messages:
-            if isinstance(message, dict) and "clientList" in message:
-                client_list.extend(message["clientList"])
-
-        self._client_list = client_list
-        LOGGER.debug("Client List filtered MACs: %s", client_list)
-
-        return client_list
 
     async def fetch_devices(self) -> list[EheimDevice]:
         """Fetch devices information and data from the WebSocket."""
@@ -73,19 +62,19 @@ class EheimDigitalWebSocketClient:
         if self._websocket is None:
             await self.connect_websocket()
 
-        # Fetch client list if not already fetched
-        if self._client_list is None:
-            await self.fetch_client_list()
-
         # Initialize devices as an empty list
         devices = []
 
-        # Iterate through the clients and send requests for device information
+        # Iterate through the unique clients and send requests for device information
         for client in self._client_list:
             request_message = f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
             LOGGER.debug("WEBSOCKET: Sending Device Client: %s Request Message: %s, ", client, request_message)
             await self._websocket.send(request_message)
             response = await self._websocket.recv()
+
+            # Log the raw response before processing
+            # LOGGER.debug("WEBSOCKET: Raw Response for Device Client: %s : %s", client, response)
+
             messages = json.loads(response)
             LOGGER.debug("WEBSOCKET: Receiving Device Client: %s Response: %s", client, messages)
 
@@ -98,52 +87,36 @@ class EheimDigitalWebSocketClient:
             elif isinstance(messages, dict) and messages["title"] == "USRDTA":
                 device = EheimDevice(messages)
                 devices.append(device)
-            LOGGER.debug("WEBSOCKET: Device: %s", devices)
+            LOGGER.debug("WEBSOCKET: Devices: %s", devices)
 
         # Log the extracted details
         for device in devices:
-            LOGGER.debug("WEBSOCKET: Device Details: title=%s, from_mac=%s, name=%s, aq_name=%s, mode=%s, version=%s",
-                        device.title, device.from_mac, device.name, device.aq_name, device.mode, device.version)
+            LOGGER.debug("WEBSOCKET: Device Details: title=%s, mac=%s, name=%s, aq_name=%s, mode=%s, version=%s",
+                        device.title, device.mac, device.name, device.aq_name, device.mode, device.version)
 
-        self._devices = devices  # Store the devices list as an instance variable
+        self._devices = devices
         return devices
-
-    async def get_device_data(self, device_type: str) -> Dict:
-        """Get data for the specified device type."""
-        request_messages = REQUEST_MESSAGES.get(device_type, [])
-        if not request_messages:
-            LOGGER.warning("No request messages found for device type: %s", device_type)
-            return {}
-
-        device_data = {}
-        for message in request_messages:
-            response = await self._send_message(message)
-            LOGGER.debug("WEBSOCKET: Message Response: %s", response)
-            if response:
-                try:
-                    response_dict = json.loads(response)  # Parse the response into a dictionary
-                    device_data[message] = response_dict
-                except json.JSONDecodeError:
-                    LOGGER.warning("Failed to parse JSON response for message: %s", message)
-        LOGGER.debug("WEBSOCKET: Device Data: %s", device_data)
-        return device_data
 
 #Send Request/Command to Device
     async def _send_message(self, message):
         """Send a specific message to the device."""
-        LOGGER.debug("WEBSOCKET: Called function _send_message")
-        LOGGER.debug("WEBSOCKET: Sending Message: %s", message)
 
         if self._websocket is None:
             await self.connect_websocket()
 
         message_str = json.dumps(message)  # Convert dictionary to JSON string
         await self._websocket.send(message_str)  # Send the JSON string
-        response = await self._websocket.recv()
+        LOGGER.debug("WEBSOCKET: Called function _send_message: Request Data %s: ", message_str)
 
-        LOGGER.debug("WEBSOCKET: Message Response: %s", response)
+        while True:
+            response = await self._websocket.recv()
+            response_dict = json.loads(response)
 
-        return response
+            # Ignore keep-alive messages
+            if response_dict.get("title") not in ["REQ_KEEP_ALIVE", "KEEP_ALIVE"]:
+                LOGGER.debug("WEBSOCKET: Message Response (_send_message): %s", response)
+                return response
+
 # LED Specific Functions
     async def turn_light_on(self, mac_address: str):
         """Turn the light on."""
@@ -166,10 +139,10 @@ class EheimDigitalWebSocketClient:
         await self._send_message(data)
 
 #Acclimation Specific Functions
-    async def request_acclimation_settings(self, mac_address: str):
+    async def get_acclimation_settings(self, mac_address: str):
         """Request acclimation settings for the LED."""
         data = {
-            "title": "REQ_ACCL",
+            "title": "GET_ACCL",
             "to": mac_address,
             "from": "USER"
         }
@@ -179,45 +152,31 @@ class EheimDigitalWebSocketClient:
     async def set_acclimation_settings(self, mac_address: str, duration: int, intensity_reduction: int, current_accl_day: int, accl_active: bool, accl_pause: bool):
         """Set acclimation settings for the LED."""
         data = {
-            "title": "SET_ACCL",
+            "title": "ACCLIMATE",
             "to": mac_address,
             "duration": duration,
             "intensityReduction": intensity_reduction,
             "currentAcclDay": current_accl_day,
             "acclActive": accl_active,
-            "acclPause": accl_pause,
+            "Pause": accl_pause,
             "from": "USER"
         }
         response = await self._send_message(data)
         return response
 
 #Dynamic Cycle Specific Functions
-    async def request_dynamic_cycle_settings(self, mac_address: str):
+    async def get_dynamic_cycle_settings(self, mac_address: str):
         """Request dynamic cycle settings for the LED."""
         data = {
-            "title": "REQ_DYCL",
+            "title": "GET_DYCL",
             "to": mac_address,
-            "from": "USER"
-        }
-        response = await self._send_message(data)
-        return response
-
-    async def set_dynamic_cycle_settings(self, mac_address: str, dawn_start: str, sunrise_end: str, sunset_start: str, dusk_end: str):
-        """Set dynamic cycle settings for the LED."""
-        data = {
-            "title": "SET_DYCL",
-            "to": mac_address,
-            "dawnStart": dawn_start,
-            "sunriseEnd": sunrise_end,
-            "sunsetStart": sunset_start,
-            "duskEnd": dusk_end,
             "from": "USER"
         }
         response = await self._send_message(data)
         return response
 
 #Color Channel Specific Functions
-    async def request_color_channel_values(self, mac_address: str):
+    async def get_color_channel_values(self, mac_address: str):
         """Request color channel values for the LED."""
         data = {
             "title": "REQ_CCV",
@@ -239,7 +198,7 @@ class EheimDigitalWebSocketClient:
         return response
 
 #Moon Phase Specific Functions
-    async def request_moon_phase(self, mac_address: str):
+    async def get_moon_phase(self, mac_address: str):
         """Request moon phase settings for the LED."""
         data = {
             "title": "GET_MOON",
@@ -261,7 +220,7 @@ class EheimDigitalWebSocketClient:
         return response
 
 #Cloud Specific Functions
-    async def request_cloud_settings(self, mac_address: str):
+    async def get_cloud_settings(self, mac_address: str):
         """Request cloud settings for the LED."""
         data = {
             "title": "GET_CLOUD",
@@ -272,7 +231,7 @@ class EheimDigitalWebSocketClient:
         return response
 
 #Description Specific Functions
-    async def request_description(self, mac_address: str):
+    async def get_description(self, mac_address: str):
         """Request description for the LED."""
         data = {
             "title": "GET_DSCRPTN",
@@ -281,3 +240,68 @@ class EheimDigitalWebSocketClient:
         }
         response = await self._send_message(data)
         return response
+
+
+#Filter Specific Functions
+    async def get_filter_data(self, mac_address: str):
+        """Request filter data for the LED."""
+        data = {
+            "title": "GET_FILTER_DATA",
+            "to": mac_address,
+            "from": "USER"
+        }
+        response = await self._send_message(data)
+        return response
+
+#Heater Specific Functions
+    async def get_heater_data(self, mac_address: str):
+        """Request heater data for the LED."""
+        data = {
+            "title": "GET_EHEATER_DATA",
+            "to": mac_address,
+            "from": "USER"
+        }
+        response = await self._send_message(data)
+        return response
+
+#PH Specific Functions
+    async def get_ph_data(self, mac_address: str):
+        """Request ph data for the LED."""
+        data = {
+            "title": "GET_PH_DATA",
+            "to": mac_address,
+            "from": "USER"
+        }
+        response = await self._send_message(data)
+        return response
+
+    DEVICE_DATA_FUNCTIONS = {
+        "filter": [get_filter_data],
+        "heater": [get_heater_data],
+        "led_control": [get_color_channel_values,
+                        get_acclimation_settings,
+                        get_dynamic_cycle_settings,
+                        get_moon_phase,
+                        get_cloud_settings,
+                        get_description],
+        "ph_control": [get_ph_data]
+    }
+
+    async def get_device_data(self, device: EheimDevice) -> Dict:
+        """Get data for all devices."""
+        device_type = device.device_type
+        device_group = device.device_group
+        functions = self.DEVICE_DATA_FUNCTIONS.get(device_group, [])
+
+        if not functions:
+            LOGGER.warning("No request functions found for device type: %s", device_type)
+            return {}
+
+        device_data = {}
+        for function in functions:
+            response = await function(self, device.mac)
+            response_dict = json.loads(response)
+            device_data.update(response_dict)
+        # LOGGER.debug("WEBSOCKET: All Device Data: %s", device_data)
+        return device_data
+

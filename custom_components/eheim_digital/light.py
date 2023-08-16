@@ -2,7 +2,10 @@
 from homeassistant.components.light import LightEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
 from .coordinator import EheimDigitalDataUpdateCoordinator
+from .devices import EheimDevice
 from .const import LOGGER, DOMAIN
 
 class EheimLedDevice(LightEntity):
@@ -11,7 +14,7 @@ class EheimLedDevice(LightEntity):
     def __init__(self, coordinator: EheimDigitalDataUpdateCoordinator, device) -> None:
         """Initialize the LED control entity."""
         self.device = device
-        self.mac = device.from_mac
+        self.mac = device.mac
         self.ccv_current_brightness = None
         self.max_moon_light = None
         self.min_moon_light = None
@@ -42,7 +45,7 @@ class EheimLedDevice(LightEntity):
     @property
     def unique_id(self):
         """Return a unique ID."""
-        return self.device.from_mac
+        return self.device.mac
 
     @property
     def is_on(self):
@@ -200,8 +203,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     entities = []
     for device in devices:
-        device_mac = device.from_mac
-        if device.device_group == "LIGHTING":
+        device_mac = device.mac
+        if device.device_group == "led_control":
             entities.append(EheimLedDevice(coordinator, device))
             LOGGER.debug("LIGHT: Added EheimLedDevice with MAC %s", device_mac)
 
