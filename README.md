@@ -9,6 +9,19 @@
 Special thanks to [@jkhalil](https://github.com/jkhalil) for making this integration possible !!!
 
 
+## Compatible devices
+| Name | Integrated | Tested | Version Website | Version Server |
+| --- | --- | --- | --- | --- |
+| professionel 5e 350 / 460 / 600T / 700 | No | No | 1.01.3 | 1.00.8 |
+| thermocontrol+ e 150 / 200 / 250 / 300 | No | No | | |
+| LEDcontrol+e | No | No | | |
+| LEDcontrol+e v2 | No | No | 2.01.6 | 2.01.6 |
+| pHcontrol+e | No | No | 2.01.6 | 2.01.6 |
+| autofeeder+ | No | No | | |
+| climacontrol+ S / M / L | No | No | | |
+| reeflexUV+e 500 / 800 / 1500 / 2000 | No | No | | |
+
+
 ## Installation
 
 ### Step 1
@@ -25,45 +38,3 @@ Restart Home Assistant
 
 ### Step 5
 Configure Integration from Home Assistant Integration menu
-
---------------------------
-
-
-## Compatible devices
-### External filters
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| professionel 5e 350 / 460 / 600T / 700 | No | No | 1.01.3 | 1.00.8 |
-
-### Heaters
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| thermocontrol+ e 150 / 200 / 250 / 300 | Yes | No | | |
-
-### Lighting control
-<sub>v2 can be identified by the yellow stripe on the device</sub>
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| LEDcontrol+e | No | No | | |
-| LEDcontrol+e v2 | No | No | 2.01.6 | 2.01.6 |
-
-
-### CO2
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| pHcontrol+e | No | No | 2.01.6 | 2.01.6 |
-
-### Feeding
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| autofeeder+ | No | No | | |
-
-### Climate control 
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| climacontrol+ S / M / L | No | No | | |
-
-### UV-Sterilizer
-| Name | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- |
-| reeflexUV+e 500 / 800 / 1500 / 2000 | No | No | | |
