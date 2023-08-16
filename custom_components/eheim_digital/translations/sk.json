@@ -1,0 +1,17 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "description": "Prosím zadajte IP adresu EHEIM zariadenia slúžiaceho ako master",
+                "data": {
+                    "ip_address": "IP adresa"
+                }
+            }
+        },
+        "error": {
+            "auth": "Meno/Heslo je nesprávne.",
+            "connection": "Nie je možné sa pripojiť na server.",
+            "unknown": "Nastala neočakávaná chyba."
+        }
+    }
+}
