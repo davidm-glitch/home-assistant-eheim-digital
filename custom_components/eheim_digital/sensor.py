@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+from datetime import datetime, timedelta
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -59,32 +60,64 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     ),
     #Filter Sensors
     EheimSensorDescription(
-        key="operating_minutes",
+        key="operating_time",
+        device_class=SensorDeviceClass.DURATION,
         icon="mdi:timer",
-        name="Operating Minutes",
+        name="Operating Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get('actualTime'),
+        native_unit_of_measurement='min',
+        unit_of_measurement='d',
+        value_fn=lambda data: int(data.get('actualTime')/60/24),
     ),
     EheimSensorDescription(
         key="night_mode_end_time",
         icon="mdi:clock-time-eight",
         name="Night Mode End Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get('end_time_night_mode')/60,
+        value_fn=lambda data: (data.get('end_time_night_mode')/60),
+    ),
+    EheimSensorDescription(
+        key="night_mode_start_time",
+        icon="mdi:clock-time-six",
+        name="Night Mode Start Time",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: data.get('start_time_night_mode')/60,
+    ),
+    EheimSensorDescription(
+        key="current_speed",
+        icon="mdi:speedometer",
+        name="Current Speed",
+        entity_registry_enabled_default=True,
+        unit_of_measurement='%',
+        value_fn=lambda data: int(data.get('freq') / data.get('maxFreqRglOff') * 100 if data.get('maxFreqRglOff') else 0),
+    ),
+    EheimSensorDescription(
+        key="next_service",
+        device_class=SensorDeviceClass.DATE,
+        icon="mdi:wrench-clock",
+        name="Next Service",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: (datetime.now() + timedelta(hours=data.get('serviceHour', 0))).date(),
+    ),
+    EheimSensorDescription(
+        key="filter_turn_off_time",
+        icon="mdi:timer",
+        name="Filter Turn Off Time",
+        entity_registry_enabled_default=True,
+        native_unit_of_measurement='s',
+        value_fn=lambda data: data.get('turnOffTime'),
     ),
 )
 
 SENSOR_GROUPS = {
     "heater": ["current_temperature", "target_temperature"],
     "led_control": [],
-    "filter": ["operating_minutes", "night_mode_end_time"],
+    "filter": ["operating_time", "night_mode_end_time", "night_mode_start_time", "current_speed", "next_service", "filter_turn_off_time", "filter_turn_off_time"],
     "other": [],
 }
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
-) -> None:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Add EheimDevice entities from a config_entry."""
     LOGGER.debug("Setting up Eheim Digital Sensor platform")
 
@@ -95,16 +128,15 @@ async def async_setup_entry(
         device_group = device.device_group
         sensor_keys_for_group = SENSOR_GROUPS.get(device_group, [])
 
+        device_data = _get_sensor_data(coordinator.data, device.mac)
+
         for description in SENSOR_DESCRIPTIONS:
             if description.key in sensor_keys_for_group:
-                sensors.append(EheimSensor(coordinator, description, device))
+                sensors.append(EheimSensor(coordinator, description, device, device_data))
 
     async_add_entities(sensors, True)
 
-
-class EheimSensor(
-    CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEntity
-):
+class EheimSensor(CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEntity):
     "Define an Eheim Sensor Entity"
 
     _attr_has_entity_name = True
@@ -116,15 +148,16 @@ class EheimSensor(
             coordinator: EheimDigitalDataUpdateCoordinator,
             description: EheimSensorDescription,
             device: EheimDevice,
-
+            device_data: dict[str, Any],
 
     ) -> None:
         """Initialize the Sensor."""
-        LOGGER.debug("Initializing Eheim Sensor Entity")
         super().__init__(coordinator)
         self.entity_description = description
-        self._sensor_data = _get_sensor_data(coordinator.data, device.model, device.mac)
+        #self._sensor_data = _get_sensor_data(coordinator.data, device.model, device.mac)
+        self._sensor_data = coordinator.data[device.mac]
         self._device = device
+        LOGGER.debug("Initializing Eheim Sensor for Device: %s Entity: %s", self._device.mac, self.entity_description.key)
 
     @property
     def native_value(self) -> StateType:
@@ -139,9 +172,12 @@ class EheimSensor(
     @callback
     def _handle_coordinator_update(self) -> None:
         "Handle updated data from the coordinator."""
-        #self._sensor_data = _get_sensor_data(self.coordinator.data, self.entity_description.key)
-        self._sensor_data = _get_sensor_data(self.coordinator.data, self._device.model, self._device.mac)
+        #self._sensor_data = _get_sensor_data(self.coordinator.data, self._device.model, self._device.mac)
+        self._sensor_data = self.coordinator.data[self._device.mac]
+
+
         self.async_write_ha_state()
+
 
     @property
     def device_info(self):
@@ -152,16 +188,14 @@ class EheimSensor(
             "model": self._device.model,
     }
 
-
-
-def _get_sensor_data(sensors: dict[str, Any], device_type: str, mac_address: str) -> Any:
+def _get_sensor_data(sensors: dict[str, Any], mac_address: str) -> Any:
     """Get the sensor data for a sensor type."""
     if sensors is None:
-        LOGGER.warning("Sensor data is None when trying to fetch %s", device_type)
+        LOGGER.warning("Sensor data is None when trying to fetch %s", mac_address)
         return None
 
     # Form the key using device_type and mac_address
-    key = (device_type, mac_address)
+    key =  mac_address
 
     data = sensors.get(key)
     if data is None:

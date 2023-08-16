@@ -34,7 +34,9 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             async with timeout(5):
                 for device in self.devices:
                     device_data = await self.websocket_client.get_device_data(device)
-                    all_device_data[device.device_type, device.mac] = device_data
+                    all_device_data[device.mac] = device_data
+                    #device_data = await self.websocket_client.get_device_data(device)
+                    #all_device_data[device.device_type, device.mac] = device_data
                 LOGGER.debug("COORDINATOR: Received response from WebSocket: %s", all_device_data)
 
         except Exception as error:
