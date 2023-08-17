@@ -1,0 +1,17 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "description": "Bitte gib die IP-Adresse des Mastergerätes ein",
+                "data": {
+                    "ip_address": "IP Adresse"
+                }
+            }
+        },
+        "error": {
+            "auth": "Nutzername / Passwort ist nicht korrekt",
+            "connection": "Verbindung zum Server nicht möglich.",
+            "unknown": "Unbekannter Fehler."
+        }
+    }
+}
