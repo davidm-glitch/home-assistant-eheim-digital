@@ -1,7 +1,6 @@
 """EHEIM WebSocket Client."""
 import json
 import websockets
-import asyncio
 from typing import Dict
 from .devices import EheimDevice
 
@@ -34,7 +33,7 @@ class EheimDigitalWebSocketClient:
             for _ in range(2):
                 initial_response = await self._websocket.recv()
                 messages = json.loads(initial_response)
-                # LOGGER.debug("WEBSOCKET: Initial WebSocket Response: %s", messages)
+                LOGGER.debug("WEBSOCKET: Initial WebSocket Response: %s", messages)
 
                 # Extracting and storing the client list
                 for message in messages:
@@ -54,7 +53,50 @@ class EheimDigitalWebSocketClient:
             self._websocket = None
 
 
-    async def fetch_devices(self) -> list[EheimDevice]:
+    # async def fetch_devices(self) -> list[EheimDevice]:
+    #     """Fetch devices information and data from the WebSocket."""
+    #     LOGGER.debug('WEBSOCKET: Called function fetch_devices')
+
+    #     # Connect to the WebSocket if not connected
+    #     if self._websocket is None:
+    #         await self.connect_websocket()
+
+    #     # Initialize devices as an empty list
+    #     devices = []
+
+    #     # Iterate through the unique clients and send requests for device information
+    #     for client in self._client_list:
+    #         request_message = f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
+    #         LOGGER.debug("WEBSOCKET: Sending Device Client: %s Request Message: %s, ", client, request_message)
+    #         await self._websocket.send(request_message)
+    #         response = await self._websocket.recv()
+
+    #         # Log the raw response before processing
+    #         # LOGGER.debug("WEBSOCKET: Raw Response for Device Client: %s : %s", client, response)
+
+    #         messages = json.loads(response)
+    #         LOGGER.debug("WEBSOCKET: Receiving Device Client: %s Response: %s", client, messages)
+
+    #         # Process the response and extract the device information
+    #         if isinstance(messages, list):
+    #             for message in messages:
+    #                 if message["title"] == "USRDTA":
+    #                     device = EheimDevice(message)
+    #                     devices.append(device)
+    #         elif isinstance(messages, dict) and messages["title"] == "USRDTA":
+    #             device = EheimDevice(messages)
+    #             devices.append(device)
+    #         LOGGER.debug("WEBSOCKET: Devices: %s", devices)
+
+    #     # Log the extracted details
+    #     for device in devices:
+    #         LOGGER.debug("WEBSOCKET: Device Details: title=%s, mac=%s, name=%s, aq_name=%s, mode=%s, version=%s",
+    #                     device.title, device.mac, device.name, device.aq_name, device.mode, device.version)
+
+    #     self._devices = devices
+    #     return devices
+
+    async def fetch_devices(self, retries=3) -> list[EheimDevice]:
         """Fetch devices information and data from the WebSocket."""
         LOGGER.debug('WEBSOCKET: Called function fetch_devices')
 
@@ -67,27 +109,33 @@ class EheimDigitalWebSocketClient:
 
         # Iterate through the unique clients and send requests for device information
         for client in self._client_list:
-            request_message = f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
-            LOGGER.debug("WEBSOCKET: Sending Device Client: %s Request Message: %s, ", client, request_message)
-            await self._websocket.send(request_message)
-            response = await self._websocket.recv()
+            for _ in range(retries):  # Retry for a specified number of times
+                request_message = f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
+                LOGGER.debug("WEBSOCKET: Sending Device Client: %s Request Message: %s, ", client, request_message)
+                await self._websocket.send(request_message)
+                response = await self._websocket.recv()
 
-            # Log the raw response before processing
-            # LOGGER.debug("WEBSOCKET: Raw Response for Device Client: %s : %s", client, response)
+                messages = json.loads(response)
+                LOGGER.debug("WEBSOCKET: Receiving Device Client: %s Response: %s", client, messages)
 
-            messages = json.loads(response)
-            LOGGER.debug("WEBSOCKET: Receiving Device Client: %s Response: %s", client, messages)
+                # Process the response and extract the device information
+                found_device = False
+                if isinstance(messages, list):
+                    for message in messages:
+                        if message["title"] == "USRDTA":
+                            device = EheimDevice(message)
+                            devices.append(device)
+                            found_device = True
+                            break
+                elif isinstance(messages, dict) and messages["title"] == "USRDTA":
+                    device = EheimDevice(messages)
+                    devices.append(device)
+                    found_device = True
 
-            # Process the response and extract the device information
-            if isinstance(messages, list):
-                for message in messages:
-                    if message["title"] == "USRDTA":
-                        device = EheimDevice(message)
-                        devices.append(device)
-            elif isinstance(messages, dict) and messages["title"] == "USRDTA":
-                device = EheimDevice(messages)
-                devices.append(device)
-            LOGGER.debug("WEBSOCKET: Devices: %s", devices)
+                # If we found a device in the response, break out of the retry loop
+                if found_device:
+                    break
+                # If not, the loop will continue and try again
 
         # Log the extracted details
         for device in devices:
@@ -97,25 +145,32 @@ class EheimDigitalWebSocketClient:
         self._devices = devices
         return devices
 
+
 #Send Request/Command to Device
-    async def _send_message(self, message):
-        """Send a specific message to the device."""
+    async def _send_message(self, message, retries=3):
+        """Send a specific message to the device and handle missing responses."""
 
         if self._websocket is None:
             await self.connect_websocket()
 
-        message_str = json.dumps(message)  # Convert dictionary to JSON string
-        await self._websocket.send(message_str)  # Send the JSON string
+        message_str = json.dumps(message)
+        await self._websocket.send(message_str)
         LOGGER.debug("WEBSOCKET: Called function _send_message: Request Data %s: ", message_str)
 
-        while True:
+        for _ in range(retries):  # Retry for a specified number of times
             response = await self._websocket.recv()
             response_dict = json.loads(response)
 
-            # Ignore keep-alive messages
+            # If response is valid, return it
             if response_dict.get("title") not in ["REQ_KEEP_ALIVE", "KEEP_ALIVE"]:
                 LOGGER.debug("WEBSOCKET: Message Response (_send_message): %s", response)
                 return response
+            else:
+                # If response is a keep-alive, send the original message again
+                await self._websocket.send(message_str)
+
+        # If we've retried the specified number of times and still haven't received a valid response
+        raise EheimDigitalWebSocketClientCommunicationError(f"Failed to get a valid response after {retries} attempts.")
 
 # LED Specific Functions
     async def turn_light_on(self, mac_address: str):

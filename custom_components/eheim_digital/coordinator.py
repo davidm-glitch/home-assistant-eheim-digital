@@ -37,7 +37,7 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     all_device_data[device.mac] = device_data
                     #device_data = await self.websocket_client.get_device_data(device)
                     #all_device_data[device.device_type, device.mac] = device_data
-                LOGGER.debug("COORDINATOR: Received response from WebSocket: %s", all_device_data)
+                LOGGER.debug("COORDINATOR: Data in Coordinator: %s", all_device_data)
 
         except Exception as error:
             raise UpdateFailed(error) from error
