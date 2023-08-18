@@ -14,7 +14,7 @@ from homeassistant.components.sensor import (
 )
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (UnitOfTemperature)
+from homeassistant.const import UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
@@ -26,19 +26,20 @@ from . import EheimDigitalDataUpdateCoordinator
 from .devices import EheimDevice
 from .const import LOGGER, DOMAIN
 
+
 @dataclass
 class EheimSensorDescriptionMixin:
     """Mixin for Eheim sensor."""
 
     value_fn: Callable[[dict[str, Any]], StateType]
 
+
 @dataclass
-class EheimSensorDescription(
-    SensorEntityDescription, EheimSensorDescriptionMixin
-):
+class EheimSensorDescription(SensorEntityDescription, EheimSensorDescriptionMixin):
     """Class describing Eheim sensor entities."""
 
     attr_fn: Callable[[dict[str, Any]], dict[str, StateType]] = lambda _: {}
+
 
 SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     # Heater Sensors
@@ -49,7 +50,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         name="Current Temperature",
         entity_registry_enabled_default=True,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value_fn=lambda data: data.get('isTemp')/10,
+        value_fn=lambda data: data.get("isTemp") / 10,
     ),
     EheimSensorDescription(
         key="target_temperature",
@@ -58,40 +59,46 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         name="Target Temperature",
         entity_registry_enabled_default=True,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        value_fn=lambda data: data.get('sollTemp')/10,
+        value_fn=lambda data: data.get("sollTemp") / 10,
     ),
-    #Filter Sensors
+    # Filter Sensors
     EheimSensorDescription(
         key="operating_time",
-        device_class=SensorDeviceClass.DURATION,
         icon="mdi:timer",
         name="Operating Time",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='min',
-        unit_of_measurement='d',
-        value_fn=lambda data: int(data.get('actualTime')/60/24),
+        native_unit_of_measurement="days",
+        value_fn=lambda data: int(data.get("actualTime") / 1440),
     ),
     EheimSensorDescription(
         key="night_mode_end_time",
         icon="mdi:clock-time-eight",
         name="Night Mode End Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: int(data.get('end_time_night_mode')/60),
+        value_fn=lambda data: "{:02d}:{:02d}".format(
+            *divmod(data.get("end_time_night_mode", 0), 60)
+        ),
     ),
     EheimSensorDescription(
         key="night_mode_start_time",
         icon="mdi:clock-time-six",
         name="Night Mode Start Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get('start_time_night_mode')/60,
+        value_fn=lambda data: "{:02d}:{:02d}".format(
+            *divmod(data.get("start_time_night_mode", 0), 60)
+        ),
     ),
     EheimSensorDescription(
         key="current_speed",
         icon="mdi:speedometer",
         name="Current Speed",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='%',
-        value_fn=lambda data: int(data.get('freq') / data.get('maxFreqRglOff') * 100 if data.get('maxFreqRglOff') else 0),
+        native_unit_of_measurement="%",
+        value_fn=lambda data: int(
+            data.get("freq") / data.get("maxFreqRglOff") * 100
+            if data.get("maxFreqRglOff")
+            else 0
+        ),
     ),
     EheimSensorDescription(
         key="next_service",
@@ -99,68 +106,86 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         icon="mdi:wrench-clock",
         name="Next Service",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: (dt_util.utcnow() + timedelta(hours=data.get('serviceHour', 0)))
+        value_fn=lambda data: (
+            dt_util.utcnow() + timedelta(hours=data.get("serviceHour", 0))
+        ),
     ),
     EheimSensorDescription(
         key="filter_turn_off_time",
         icon="mdi:timer",
         name="Filter Turn Off Time",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='h',
-        value_fn=lambda data: data.get('turnOffTime'),
+        native_unit_of_measurement="h",
+        value_fn=lambda data: data.get("turnOffTime"),
     ),
-    #LED Control Sensors
+    # LED Control Sensors
     EheimSensorDescription(
         key="ccv_brightness",
         icon="mdi:format-color-fill",
         name="Brightness",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='%',
-        value_fn=lambda data: sum(data['currentValues']) / len(data['currentValues'])
+        native_unit_of_measurement="%",
+        value_fn=lambda data: sum(data["currentValues"]) / len(data["currentValues"]),
     ),
     EheimSensorDescription(
         key="ccv_brightness_white",
         icon="mdi:format-color-fill",
         name="White Brightness",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='%',
-        value_fn=lambda data: data.get('currentValues')[0],
+        native_unit_of_measurement="%",
+        value_fn=lambda data: data.get("currentValues")[0],
     ),
     EheimSensorDescription(
         key="ccv_brightness_plants_gold",
         icon="mdi:format-color-fill",
         name="Plants Gold Brightness",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='%',
-        value_fn=lambda data: data.get('currentValues')[1],
+        native_unit_of_measurement="%",
+        value_fn=lambda data: data.get("currentValues")[1],
     ),
     EheimSensorDescription(
         key="ccv_brightness_royal_blue",
         icon="mdi:format-color-fill",
         name="Royal Blue Brightness",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement='%',
-        value_fn=lambda data: data.get('currentValues')[2],
+        native_unit_of_measurement="%",
+        value_fn=lambda data: data.get("currentValues")[2],
     ),
-    #PH Control Sensors
+    # PH Control Sensors
     EheimSensorDescription(
         key="ph_current_ph",
         icon="mdi:ph",
         name="Current PH",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: round((int(data['isPH']) / 10), 1),
+        value_fn=lambda data: round((int(data["isPH"]) / 10), 1),
     ),
 )
 
 SENSOR_GROUPS = {
     "heater": ["current_temperature", "target_temperature"],
-    "led_control": ["ccv_brightness", "ccv_brightness_white", "ccv_brightness_plants_gold", "ccv_brightness_royal_blue"],
-    "filter": ["operating_time", "night_mode_end_time", "night_mode_start_time", "current_speed", "next_service", "filter_turn_off_time", "filter_turn_off_time"],
+    "led_control": [
+        "ccv_brightness",
+        "ccv_brightness_white",
+        "ccv_brightness_plants_gold",
+        "ccv_brightness_royal_blue",
+    ],
+    "filter": [
+        "operating_time",
+        "night_mode_end_time",
+        "night_mode_start_time",
+        "current_speed",
+        "next_service",
+        "filter_turn_off_time",
+        "filter_turn_off_time",
+    ],
     "ph_control": ["ph_current_ph"],
     "other": [],
 }
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Add EheimDevice entities from a config_entry."""
     LOGGER.debug("Setting up Eheim Digital Sensor platform")
 
@@ -175,9 +200,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
         for description in SENSOR_DESCRIPTIONS:
             if description.key in sensor_keys_for_group:
-                sensors.append(EheimSensor(coordinator, description, device, device_data))
+                sensors.append(
+                    EheimSensor(coordinator, description, device, device_data)
+                )
 
     async_add_entities(sensors, True)
+
 
 class EheimSensor(CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEntity):
     "Define an Eheim Sensor Entity"
@@ -185,21 +213,23 @@ class EheimSensor(CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEn
     _attr_has_entity_name = True
     entity_description: EheimSensorDescription
 
-
     def __init__(
-            self,
-            coordinator: EheimDigitalDataUpdateCoordinator,
-            description: EheimSensorDescription,
-            device: EheimDevice,
-            device_data: dict[str, Any],
-
+        self,
+        coordinator: EheimDigitalDataUpdateCoordinator,
+        description: EheimSensorDescription,
+        device: EheimDevice,
+        device_data: dict[str, Any],
     ) -> None:
         """Initialize the Sensor."""
         super().__init__(coordinator)
         self.entity_description = description
         self._sensor_data = coordinator.data[device.mac]
         self._device = device
-        LOGGER.debug("Initializing Eheim Sensor for Device: %s Entity: %s", self._device.mac,self.entity_description.key)
+        LOGGER.debug(
+            "Initializing Eheim Sensor for Device: %s Entity: %s",
+            self._device.mac,
+            self.entity_description.key,
+        )
 
     @property
     def native_value(self) -> StateType:
@@ -213,7 +243,7 @@ class EheimSensor(CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEn
 
     @callback
     def _handle_coordinator_update(self) -> None:
-        "Handle updated data from the coordinator."""
+        "Handle updated data from the coordinator." ""
         self._sensor_data = self.coordinator.data[self._device.mac]
         self.async_write_ha_state()
 
@@ -224,7 +254,8 @@ class EheimSensor(CoordinatorEntity[EheimDigitalDataUpdateCoordinator], SensorEn
             "name": self._device.name,
             "manufacturer": "Eheim",
             "model": self._device.model,
-    }
+        }
+
 
 def _get_sensor_data(sensors: dict[str, Any], mac_address: str) -> Any:
     """Get the sensor data for a sensor type."""
@@ -233,7 +264,7 @@ def _get_sensor_data(sensors: dict[str, Any], mac_address: str) -> Any:
         return None
 
     # Form the key using device_type and mac_address
-    key =  mac_address
+    key = mac_address
 
     data = sensors.get(key)
     if data is None:
@@ -241,6 +272,3 @@ def _get_sensor_data(sensors: dict[str, Any], mac_address: str) -> Any:
     else:
         LOGGER.debug("Received sensor data for %s: %s", key, data)
     return data
-
-
-

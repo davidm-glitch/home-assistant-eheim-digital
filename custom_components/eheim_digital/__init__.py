@@ -6,10 +6,10 @@ from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.helpers import device_registry as dr
 
 
-
 from .const import DOMAIN, LOGGER, PLATFORMS, UPDATE_INTERVAL
 from .websocket import EheimDigitalWebSocketClient
 from .coordinator import EheimDigitalDataUpdateCoordinator
+
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the EHEIM Digital integration from a config entry."""
@@ -17,7 +17,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
-
 
     websocket_client = EheimDigitalWebSocketClient(entry.data[CONF_IP_ADDRESS])
     devices = await websocket_client.fetch_devices()
@@ -37,9 +36,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             name=device.name,
             manufacturer="EHEIM",
             model=device.model,
-            sw_version=device.version,
+            hw_version=f"{str(device.revision[0])[0]}.{str(device.revision[0])[1:3]}.{str(device.revision[0])[3]}",
+            sw_version=f"{str(device.revision[1])[0]}.{str(device.revision[1])[1:3]}.{str(device.revision[1])[3]}",
         )
-        #LOGGER.debug("INIT: Registered device Name: %s, MAC: %s, Type: %s, Version: %s",
+        # LOGGER.debug("INIT: Registered device Name: %s, MAC: %s, Type: %s, Version: %s",
         #             device.name, device.mac, device.device_type, device.version)
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -50,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return True
 
+
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -59,7 +60,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     return unload_ok
 
+
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Update listener."""
     await hass.config_entries.async_reload(entry.entry_id)
-
