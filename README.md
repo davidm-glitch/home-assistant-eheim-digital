@@ -10,16 +10,16 @@ Special thanks to [@jkhalil](https://github.com/jkhalil) for making this integra
 
 
 ## Compatible devices
-| Name | Work In Progress | Integrated | Tested | Version Website | Version Server |
-| --- | --- | --- | --- | --- | --- |
-| professionel 5e 350 / 460 / 600T / 700 | ✔️ | ❌ | ❌ | 1.01.3 | 1.00.8 |
-| thermocontrol+ e 150 / 200 / 250 / 300 | ✔️ |❌ | ❌ | | |
-| LEDcontrol+e |  | ❌ | ❌ | | |
-| LEDcontrol+e v2 | ✔️ |❌ | ❌ | 2.01.6 | 2.01.6 |
-| pHcontrol+e | ✔️ | ❌ | ❌ | 2.01.6 | 2.01.6 |
-| autofeeder+ |  | ❌ |❌ | | |
-| climacontrol+ S / M / L |  | ❌ | ❌ | | |
-| reeflexUV+e 500 / 800 / 1500 / 2000 |  | ❌ | ❌ | | |
+| Name | Work In Progress | Sensors | Commands |
+| --- | --- | --- | --- |
+| professionel 5e 350 / 460 / 600T / 700 | :monocle_face: | ✔️ | ❌ |
+| thermocontrol+ e 150 / 200 / 250 / 300 | :monocle_face: | ✔️ | ❌ |
+| LEDcontrol+e |  | ❌ | ❌ |
+| LEDcontrol+e v2 | :monocle_face: | ✔️ |❌ |
+| pHcontrol+e | :monocle_face: | ✔️ | ❌ |
+| autofeeder+ |  | ❌ | ❌ |
+| climacontrol+ S / M / L |  | ❌ | ❌ |
+| reeflexUV+e 500 / 800 / 1500 / 2000 |  | ❌ | ❌ |
 > **_NOTE:_** If you own a device that is not integrated yet, please get in touch! 
 
 
