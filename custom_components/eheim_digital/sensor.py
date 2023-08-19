@@ -64,11 +64,12 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     # Filter Sensors
     EheimSensorDescription(
         key="operating_time",
+        device_class=SensorDeviceClass.DURATION,
         icon="mdi:timer",
         name="Operating Time",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement="days",
-        value_fn=lambda data: int(data.get("actualTime") / 1440),
+        native_unit_of_measurement="h",
+        value_fn=lambda data: int(data.get("actualTime") / 60),
     ),
     EheimSensorDescription(
         key="night_mode_end_time",
@@ -115,7 +116,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         icon="mdi:timer",
         name="Filter Turn Off Time",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement="h",
+        native_unit_of_measurement="s",
         value_fn=lambda data: data.get("turnOffTime"),
     ),
     # LED Control Sensors
@@ -125,7 +126,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         name="Brightness",
         entity_registry_enabled_default=True,
         native_unit_of_measurement="%",
-        value_fn=lambda data: sum(data["currentValues"]) / len(data["currentValues"]),
+        value_fn=lambda data: round(sum(data["currentValues"]) / len(data["currentValues"])),
     ),
     EheimSensorDescription(
         key="ccv_brightness_white",
