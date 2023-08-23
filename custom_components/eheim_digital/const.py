@@ -63,10 +63,6 @@ DEVICE_GROUPS = {
     ],
 }
 
-DEVICE_MODES = {
-    "filter": FILTER_PUMP_MODES,
-}
-
 # Cansiter filter pump modes
 FILTER_PUMP_MODES = {
     "PM_NORMAL": 1,
@@ -84,3 +80,12 @@ FILTER_PUMP_MODES = {
     "PM_CALIBRATION": 16384,
     "PM_RESET": 32768,
 }
+
+# Heater modes
+HEATER_MODES = {}
+
+# LED Control modes
+LED_CONTROL_MODES = {}
+
+# pH Control modes
+PH_CONTROL_MODES = {}

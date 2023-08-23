@@ -1,5 +1,21 @@
 """EHEIM Device representation."""
-from .const import LOGGER, DEVICE_VERSIONS, DEVICE_GROUPS
+from homeassistant.core import HomeAssistant
+from homeassistant.components.input_select import DOMAIN as INPUT_SELECT_DOMAIN
+
+from .const import (
+    LOGGER,
+    DEVICE_VERSIONS,
+    DEVICE_GROUPS,
+    FILTER_PUMP_MODES,
+    DEVICE_TYPES,
+)
+
+DEVICE_MODES = {
+    "filter": FILTER_PUMP_MODES,
+    # "heater": HEATER_MODES,
+    # "led_control": LED_CONTROL_MODES,
+    # "ph_control": PH_CONTROL_MODES,
+}
 
 
 class EheimDevice:
@@ -39,6 +55,27 @@ class EheimDevice:
             "DEVICES: EheimDevice %s: with MAC: %s initialized", self.name, self._mac
         )
         LOGGER.debug("DEVICES: Initializing with data: %s", data)
+
+    async def create_input_select(self, hass: HomeAssistant):
+        """Create an input_select for the device modes."""
+        # Get the modes for this device type
+        modes = DEVICE_MODES.get(self.device_type)
+        if not modes:
+            return  # Exit if no modes found for this device type
+
+        # Get the icon for this device type
+        icon = DEVICE_TYPES.get(self.device_type, {}).get("icon", "mdi:help-circle")
+
+        # Define the service data
+        data = {
+            "name": f"{self.name} Mode",
+            "options": list(modes.keys()),  # Use the mode options from the mapping
+            "initial": self.mode,  # Set the initial mode
+            "icon": icon,  # Use the icon from DEVICE_TYPES
+        }
+
+        # Call the input_select.create service
+        await hass.services.async_call(INPUT_SELECT_DOMAIN, "create", data)
 
     @property
     def name(self):
@@ -217,15 +254,3 @@ class EheimDevice:
             if hasattr(self, attribute_name):
                 setattr(self, attribute_name, value)
         LOGGER.debug("DEVICES: Updated EheimDevice %s: with data: %s", self.name, data)
-
-    async def create_input_select(self, hass):
-        """Create an input_select for the device modes."""
-        # Define the service data
-        data = {
-            "name": f"{self.name} Mode",
-            "options": list(
-                FILTER_PUMP_MODES.keys()
-            ),  # Assuming these are the mode options
-            "initial": self.mode,  # Set the initial mode
-            "icon": "mdi:filter",  # You can use the icon from DEVICE_TYPES if desired
-        }
