@@ -6,7 +6,7 @@ from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.helpers import device_registry as dr
 
 
-from .const import DOMAIN, LOGGER, PLATFORMS, UPDATE_INTERVAL
+from .const import DOMAIN, LOGGER, PLATFORMS
 from .websocket import EheimDigitalWebSocketClient
 from .coordinator import EheimDigitalDataUpdateCoordinator
 

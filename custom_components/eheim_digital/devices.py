@@ -1,6 +1,7 @@
 """EHEIM Device representation."""
 from .const import LOGGER, DEVICE_VERSIONS, DEVICE_GROUPS
 
+
 class EheimDevice:
     """EHEIM Device representation."""
 
@@ -34,10 +35,10 @@ class EheimDevice:
         self._demo_use = data.get("demoUse")
         self._sys_led = data.get("sysLED")  # Optional
 
-
-        LOGGER.debug("DEVICES: EheimDevice %s: with MAC: %s initialized", self.name, self._mac)
+        LOGGER.debug(
+            "DEVICES: EheimDevice %s: with MAC: %s initialized", self.name, self._mac
+        )
         LOGGER.debug("DEVICES: Initializing with data: %s", data)
-
 
     @property
     def name(self):
@@ -206,7 +207,7 @@ class EheimDevice:
 
     def __repr__(self):
         """String representation of the EheimDevice."""
-        #return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, device_type={self.device_type}, device_group={self.device_group})"
+        # return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, device_type={self.device_type}, device_group={self.device_group})"
         return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, aqname={self.aq_name}, mode={self.mode}, version={self._version}, language={self._language}, timezone={self._timezone}, tankid={self._tank_id}, dst={self._dst}, tankconfig={self._tank_config}, power={self._power}, netmode={self._net_mode}, host={self._host}, groupid={self._group_id}, meshing={self._meshing}, firststart={self._first_start}, remote={self._remote}, revision={self._revision}, latestavailablerevision={self._latest_available_revision}, firmwareavailable={self._firmware_available}, emailaddress={self._email_address}, livetime={self._live_time}, username={self._user_name}, unit={self._unit}, demouse={self._demo_use}, sysled={self._sys_led}, device_type={self.device_type}, device_group={self.device_group})"
 
     def update(self, data: dict) -> None:
@@ -216,3 +217,15 @@ class EheimDevice:
             if hasattr(self, attribute_name):
                 setattr(self, attribute_name, value)
         LOGGER.debug("DEVICES: Updated EheimDevice %s: with data: %s", self.name, data)
+
+    async def create_input_select(self, hass):
+        """Create an input_select for the device modes."""
+        # Define the service data
+        data = {
+            "name": f"{self.name} Mode",
+            "options": list(
+                FILTER_PUMP_MODES.keys()
+            ),  # Assuming these are the mode options
+            "initial": self.mode,  # Set the initial mode
+            "icon": "mdi:filter",  # You can use the icon from DEVICE_TYPES if desired
+        }

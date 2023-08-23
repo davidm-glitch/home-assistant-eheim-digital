@@ -15,7 +15,12 @@ from .websocket import EheimDigitalWebSocketClient
 class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Class to manage fetching EHEIM Digital data."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, websocket_client: EheimDigitalWebSocketClient) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        websocket_client: EheimDigitalWebSocketClient,
+    ) -> None:
         """Initialize."""
         self.websocket_client = websocket_client
         self.entry = entry
@@ -31,16 +36,14 @@ class EheimDigitalDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         all_device_data = {}
         try:
             LOGGER.debug("COORDINATOR: Calling WebSocket to update data in Coordinator")
-            async with timeout(5):
-                for device in self.devices:
-                    device_data = await self.websocket_client.get_device_data(device)
-                    all_device_data[device.mac] = device_data
-                    #device_data = await self.websocket_client.get_device_data(device)
-                    #all_device_data[device.device_type, device.mac] = device_data
-                LOGGER.debug("COORDINATOR: Data in Coordinator: %s", all_device_data)
+            for device in self.devices:
+                LOGGER.debug("COORDINATOR: Device: %s", device)
+                device_data = await self.websocket_client.get_device_data(device)
+                all_device_data[device.mac] = device_data
+                # device_data = await self.websocket_client.get_device_data(device)
+                # all_device_data[device.device_type, device.mac] = device_data
+                LOGGER.debug("COORDINATOR: Data in Coordinator: %s", device_data)
 
         except Exception as error:
             raise UpdateFailed(error) from error
         return all_device_data
-
-
