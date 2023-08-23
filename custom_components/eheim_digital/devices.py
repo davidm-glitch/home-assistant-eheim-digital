@@ -1,7 +1,4 @@
 """EHEIM Device representation."""
-from homeassistant.core import HomeAssistant
-from homeassistant.components.input_select import DOMAIN as INPUT_SELECT_DOMAIN
-
 from .const import (
     LOGGER,
     DEVICE_VERSIONS,
@@ -9,13 +6,6 @@ from .const import (
     FILTER_PUMP_MODES,
     DEVICE_TYPES,
 )
-
-DEVICE_MODES = {
-    "filter": FILTER_PUMP_MODES,
-    # "heater": HEATER_MODES,
-    # "led_control": LED_CONTROL_MODES,
-    # "ph_control": PH_CONTROL_MODES,
-}
 
 
 class EheimDevice:
@@ -55,27 +45,6 @@ class EheimDevice:
             "DEVICES: EheimDevice %s: with MAC: %s initialized", self.name, self._mac
         )
         LOGGER.debug("DEVICES: Initializing with data: %s", data)
-
-    async def create_input_select(self, hass: HomeAssistant):
-        """Create an input_select for the device modes."""
-        # Get the modes for this device type
-        modes = DEVICE_MODES.get(self.device_type)
-        if not modes:
-            return  # Exit if no modes found for this device type
-
-        # Get the icon for this device type
-        icon = DEVICE_TYPES.get(self.device_type, {}).get("icon", "mdi:help-circle")
-
-        # Define the service data
-        data = {
-            "name": f"{self.name} Mode",
-            "options": list(modes.keys()),  # Use the mode options from the mapping
-            "initial": self.mode,  # Set the initial mode
-            "icon": icon,  # Use the icon from DEVICE_TYPES
-        }
-
-        # Call the input_select.create service
-        await hass.services.async_call(INPUT_SELECT_DOMAIN, "create", data)
 
     @property
     def name(self):
@@ -244,7 +213,6 @@ class EheimDevice:
 
     def __repr__(self):
         """String representation of the EheimDevice."""
-        # return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, device_type={self.device_type}, device_group={self.device_group})"
         return f"EheimDevice(title={self._title}, name={self.name}, mac={self._mac}, aqname={self.aq_name}, mode={self.mode}, version={self._version}, language={self._language}, timezone={self._timezone}, tankid={self._tank_id}, dst={self._dst}, tankconfig={self._tank_config}, power={self._power}, netmode={self._net_mode}, host={self._host}, groupid={self._group_id}, meshing={self._meshing}, firststart={self._first_start}, remote={self._remote}, revision={self._revision}, latestavailablerevision={self._latest_available_revision}, firmwareavailable={self._firmware_available}, emailaddress={self._email_address}, livetime={self._live_time}, username={self._user_name}, unit={self._unit}, demouse={self._demo_use}, sysled={self._sys_led}, device_type={self.device_type}, device_group={self.device_group})"
 
     def update(self, data: dict) -> None:
