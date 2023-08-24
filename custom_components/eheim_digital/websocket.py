@@ -27,36 +27,86 @@ class EheimDigitalWebSocketClient:
         self._devices = None
         self._client_list = None
         self._lock = asyncio.Lock()
+        self.buffer = []
+        self.send_interval = 1  # 1 second
+        self.max_retries = 3  # Maximum number of reconnection attempts
+        self.heartbeat_interval = 30  # 30 seconds
+
+    @property
+    def is_connected(self):
+        return self._websocket is not None and not self._websocket.closed
+
+    async def reconnect(self):
+        """Attempt to reconnect to the server."""
+        retry_count = 0
+        while not self.is_connected and retry_count < self.max_retries:
+            try:
+                await self.connect_websocket()
+                LOGGER.info(f"Reconnected on attempt {retry_count + 1}")
+                return
+            except Exception as e:
+                LOGGER.error(f"Reconnection attempt {retry_count + 1} failed: {e}")
+                retry_count += 1
+                await asyncio.sleep(5)
+        LOGGER.error("Failed to reconnect after max retries")
+
+    async def start_heartbeat(self):
+        """Send a heartbeat message at regular intervals."""
+        while self.is_connected:
+            await self._send_message({"title": "GET_MESH_NETWORK", "to": "MASTER"})
+            await asyncio.sleep(self.heartbeat_interval)
+
+    async def buffered_send(self, message: Dict):
+        """Add the message to the buffer."""
+        self.buffer.append(message)
+
+    async def process_buffer(self):
+        """Process and send messages from the buffer at regular intervals."""
+        while self.is_connected:
+            if self.buffer:
+                message = self.buffer.pop(0)
+                await self._send_message(message)
+            await asyncio.sleep(self.send_interval)
+
+    async def check_connection(self):
+        """Check the WebSocket connection and reconnect if necessary."""
+        if not self.is_connected:
+            await self.reconnect()
 
     async def connect_websocket(self) -> None:
         """Connect to the WebSocket server and process initial messages."""
-        LOGGER.debug("WEBSOCKET: Called function connect_websocket")
-        try:
-            self._websocket = await websockets.connect(self._url)  # pylint: disable=all
+        async with self._lock:  # Ensure only one connection attempt at a time
+            LOGGER.debug("WEBSOCKET: Called function connect_websocket")
+            try:
+                self._websocket = await websockets.connect(
+                    self._url, subprotocols=["arduino"]
+                )  # pylint: disable=all
 
-            # Process the first two initial messages
-            for _ in range(2):
-                initial_response = await self._websocket.recv()
-                messages = json.loads(initial_response)
-                LOGGER.debug("WEBSOCKET: Initial WebSocket Response: %s", messages)
+                # Process the first two initial messages
+                for _ in range(2):
+                    initial_response = await self._websocket.recv()
+                    messages = json.loads(initial_response)
+                    LOGGER.debug("WEBSOCKET: Initial WebSocket Response: %s", messages)
 
-                # Extracting and storing the client list
-                for message in messages:
-                    if "clientList" in message:
-                        self._client_list = list(set(message["clientList"]))
-                        break
+                    # Extracting and storing the client list
+                    for message in messages:
+                        if "clientList" in message:
+                            self._client_list = list(set(message["clientList"]))
+                            break
 
-                LOGGER.debug("WEBSOCKET: Client List: %s", self._client_list)
-        except Exception as ex:
-            raise EheimDigitalWebSocketClientCommunicationError(
-                f"Failed to connect to WebSocket: {ex}"
-            ) from ex
+                    LOGGER.debug("WEBSOCKET: Client List: %s", self._client_list)
+            except Exception as ex:
+                raise EheimDigitalWebSocketClientCommunicationError(
+                    f"Failed to connect to WebSocket: {ex}"
+                ) from ex
 
     async def disconnect_websocket(self) -> None:
         """Disconnect from the WebSocket server."""
-        if self._websocket:
-            await self._websocket.close()
-            self._websocket = None
+        async with self._lock:  # Ensure only one disconnection attempt at a time
+            LOGGER.debug("WEBSOCKET: Called function disconnect_websocket")
+            if self._websocket:
+                await self._websocket.close()
+                self._websocket = None
 
     async def fetch_devices(self) -> list[EheimDevice]:
         """Fetch devices information and data from the WebSocket."""
@@ -69,37 +119,38 @@ class EheimDigitalWebSocketClient:
         # Initialize devices as an empty list
         devices = []
 
-        # Iterate through the unique clients and send requests for device information
-        for client in self._client_list:
-            request_message = (
-                f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
-            )
-            LOGGER.debug(
-                "WEBSOCKET: Sending Device Client: %s Request Message: %s, ",
-                client,
-                request_message,
-            )
-            await self._websocket.send(request_message)
-            response = await self._websocket.recv()
+        # Iterate through the unique clients, send requests for device information, and process the responses
+        async with self._lock:
+            for client in self._client_list:
+                request_message = (
+                    f'{{"title": "GET_USRDTA","to": "{client}","from": "USER"}}'
+                )
+                LOGGER.debug(
+                    "WEBSOCKET: Sending Device Client: %s Request Message: %s, ",
+                    client,
+                    request_message,
+                )
+                await self._websocket.send(request_message)
+                response = await self._websocket.recv()
 
-            # Log the raw response before processing
-            # LOGGER.debug("WEBSOCKET: Raw Response for Device Client: %s : %s", client, response)
+                messages = json.loads(response)
+                LOGGER.debug(
+                    "WEBSOCKET: Receiving Device Client: %s Response: %s",
+                    client,
+                    messages,
+                )
 
-            messages = json.loads(response)
-            LOGGER.debug(
-                "WEBSOCKET: Receiving Device Client: %s Response: %s", client, messages
-            )
+                # Process the response and extract the device information
+                if isinstance(messages, list):
+                    for message in messages:
+                        if message["title"] == "USRDTA":
+                            device = EheimDevice(message)
+                            devices.append(device)
+                elif isinstance(messages, dict) and messages["title"] == "USRDTA":
+                    device = EheimDevice(messages)
+                    devices.append(device)
 
-            # Process the response and extract the device information
-            if isinstance(messages, list):
-                for message in messages:
-                    if message["title"] == "USRDTA":
-                        device = EheimDevice(message)
-                        devices.append(device)
-            elif isinstance(messages, dict) and messages["title"] == "USRDTA":
-                device = EheimDevice(messages)
-                devices.append(device)
-            LOGGER.debug("WEBSOCKET: Devices: %s", devices)
+        LOGGER.debug("WEBSOCKET: Devices: %s", devices)
 
         # Log the extracted details
         for device in devices:
@@ -119,7 +170,7 @@ class EheimDigitalWebSocketClient:
     # Send Request/Command to Device
     async def _send_message(self, message):
         """Send a specific message to the device and wait for its response."""
-
+        await self.check_connection()
         async with self._lock:  # Ensure only one request is active at a time
             if self._websocket is None:
                 await self.connect_websocket()
@@ -134,7 +185,8 @@ class EheimDigitalWebSocketClient:
 
                 if response_dict.get("title") in ["REQ_KEEP_ALIVE", "KEEP_ALIVE"]:
                     LOGGER.debug(
-                        "WEBSOCKET: Received keep-alive. Continuing to wait for actual response."
+                        "WEBSOCKET: Received keep-alive. Continuing to wait for response to: %s",
+                        message_str,
                     )
                     continue  # Ignore keep-alives and continue waiting for the actual response
 
@@ -284,8 +336,9 @@ class EheimDigitalWebSocketClient:
         "ph_control": [get_ph_data],
     }
 
-    async def get_device_data(self, device: EheimDevice) -> Dict:
+    async def get_device_data(self, device: EheimDevice) -> dict:
         """Get data for all devices."""
+        await self.check_connection()
         device_type = device.device_type
         device_group = device.device_group
         functions = self.DEVICE_DATA_FUNCTIONS.get(device_group, [])
@@ -298,8 +351,17 @@ class EheimDigitalWebSocketClient:
 
         device_data = {}
         for function in functions:
+            LOGGER.debug(
+                "WEBSOCKET: Starting function %s for device %s",
+                function.__name__,
+                device.mac,
+            )
             response = await function(self, device.mac)
             response_dict = json.loads(response)
             device_data.update(response_dict)
-        # LOGGER.debug("WEBSOCKET: All Device Data: %s", device_data)
+            LOGGER.debug(
+                "WEBSOCKET: Completed function %s for device %s",
+                function.__name__,
+                device.mac,
+            )
         return device_data

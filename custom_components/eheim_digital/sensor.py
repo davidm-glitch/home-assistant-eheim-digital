@@ -68,8 +68,9 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         icon="mdi:timer",
         name="Operating Time",
         entity_registry_enabled_default=True,
-        native_unit_of_measurement="h",
-        value_fn=lambda data: int(data.get("actualTime") / 60),
+        native_unit_of_measurement="d",
+        state_class="total_increasing",
+        value_fn=lambda data: data.get("actualTime") / (1440 * 24),
     ),
     EheimSensorDescription(
         key="night_mode_end_time",
@@ -126,7 +127,9 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         name="Brightness",
         entity_registry_enabled_default=True,
         native_unit_of_measurement="%",
-        value_fn=lambda data: round(sum(data["currentValues"]) / len(data["currentValues"])),
+        value_fn=lambda data: round(
+            sum(data["currentValues"]) / len(data["currentValues"])
+        ),
     ),
     EheimSensorDescription(
         key="ccv_brightness_white",
@@ -155,10 +158,31 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     # PH Control Sensors
     EheimSensorDescription(
         key="ph_current_ph",
-        icon="mdi:ph",
+        device_class=SensorDeviceClass.PH,
         name="Current PH",
         entity_registry_enabled_default=True,
         value_fn=lambda data: round((int(data["isPH"]) / 10), 1),
+    ),
+    EheimSensorDescription(
+        key="ph_target_ph",
+        device_class=SensorDeviceClass.PH,
+        name="Target PH",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: round((int(data["sollPH"]) / 10), 1),
+    ),
+    EheimSensorDescription(
+        key="ph_dayStart_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        name="Day Start Time",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: data.get("dayStartT"),
+    ),
+    EheimSensorDescription(
+        key="ph_nightStart_time",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        name="Night Start Time",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: data.get("nightStartT"),
     ),
 )
 
@@ -179,7 +203,12 @@ SENSOR_GROUPS = {
         "filter_turn_off_time",
         "filter_turn_off_time",
     ],
-    "ph_control": ["ph_current_ph"],
+    "ph_control": [
+        "ph_current_ph",
+        "ph_target_ph",
+        "ph_dayStart_time",
+        "ph_nightStart_time",
+    ],
     "other": [],
 }
 
