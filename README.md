@@ -9,6 +9,9 @@
 Special thanks to [@jkhalil](https://github.com/jkhalil) for making this integration possible !!!
 
 
+Join our [discord server](https://discord.gg/bHDHqMyuDy) to talk about the integration or create issues and discussions on github!
+
+
 ## Compatible devices
 | Name | Work In Progress | Sensors | Commands |
 | --- | --- | --- | --- |
