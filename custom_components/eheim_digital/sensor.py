@@ -158,6 +158,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     # PH Control Sensors
     EheimSensorDescription(
         key="ph_current_ph",
+        icon="mdi:pH",
         device_class=SensorDeviceClass.PH,
         name="Current PH",
         entity_registry_enabled_default=True,
@@ -165,6 +166,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     ),
     EheimSensorDescription(
         key="ph_target_ph",
+        icon="mdi:pH",
         device_class=SensorDeviceClass.PH,
         name="Target PH",
         entity_registry_enabled_default=True,
@@ -172,6 +174,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     ),
     EheimSensorDescription(
         key="ph_dayStart_time",
+        mdi_icon="mdi:clock-time-six",
         device_class=SensorDeviceClass.TIMESTAMP,
         name="Day Start Time",
         entity_registry_enabled_default=True,
@@ -179,10 +182,29 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     ),
     EheimSensorDescription(
         key="ph_nightStart_time",
+        mdi_icon="mdi:clock-time-eight",
         device_class=SensorDeviceClass.TIMESTAMP,
         name="Night Start Time",
         entity_registry_enabled_default=True,
         value_fn=lambda data: data.get("nightStartT"),
+    ),
+    EheimSensorDescription(
+        key="kH_valve",
+        mdi_icon="mdi:water-thermometer",
+        device_class=SensorDeviceClass.CO2,
+        name="kH Value",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: round(data.get("kH")),
+    ),
+    EheimSensorDescription(
+        key="next_ph_service",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        icon="mdi:wrench-clock",
+        name="Next PH Service",
+        entity_registry_enabled_default=True,
+        value_fn=lambda data: (
+            dt_util.utcnow() + timedelta(days=data.get("serviceTime", 0))
+        ),
     ),
 )
 
@@ -208,6 +230,8 @@ SENSOR_GROUPS = {
         "ph_target_ph",
         "ph_dayStart_time",
         "ph_nightStart_time",
+        "kH_valve",
+        "next_ph_service",
     ],
     "other": [],
 }

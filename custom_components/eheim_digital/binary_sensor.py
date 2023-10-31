@@ -43,7 +43,7 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EheimBinarySensorDescription, ...] = (
     # Heater Binary Sensors
     EheimBinarySensorDescription(
         key="heater_is_heating",
-        device_class=BinarySensorDeviceClass.RUNNING,
+        device_class=BinarySensorDeviceClass.HEAT,
         name="Heater Is Heating",
         entity_registry_enabled_default=True,
         value_fn=lambda data: data.get("isHeating"),
@@ -95,9 +95,9 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EheimBinarySensorDescription, ...] = (
     EheimBinarySensorDescription(
         key="filter_is_active",
         device_class=BinarySensorDeviceClass.RUNNING,
-        name="Filter State",
+        name="Filter Is Active",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get("FilterActive"),
+        value_fn=lambda data: data.get("filterActive"),
     ),
 )
 
