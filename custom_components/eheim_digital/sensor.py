@@ -158,39 +158,44 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     # PH Control Sensors
     EheimSensorDescription(
         key="ph_current_ph",
-        icon="mdi:pH",
+        icon="mdi:ph",
         device_class=SensorDeviceClass.PH,
-        name="Current PH",
+        unit_of_measurement="",
+        name="Current pH",
         entity_registry_enabled_default=True,
         value_fn=lambda data: round((int(data["isPH"]) / 10), 1),
     ),
     EheimSensorDescription(
         key="ph_target_ph",
-        icon="mdi:pH",
+        icon="mdi:ph",
         device_class=SensorDeviceClass.PH,
-        name="Target PH",
+        name="Target pH",
         entity_registry_enabled_default=True,
         value_fn=lambda data: round((int(data["sollPH"]) / 10), 1),
     ),
     EheimSensorDescription(
         key="ph_dayStart_time",
-        mdi_icon="mdi:clock-time-six",
+        icon="mdi:clock-time-six",
         device_class=SensorDeviceClass.TIMESTAMP,
         name="Day Start Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get("dayStartT"),
+        value_fn=lambda data: "{:02d}:{:02d}".format(
+            *divmod(data.get("dayStartT", 0), 60)
+        ),
     ),
     EheimSensorDescription(
         key="ph_nightStart_time",
-        mdi_icon="mdi:clock-time-eight",
+        icon="mdi:clock-time-eight",
         device_class=SensorDeviceClass.TIMESTAMP,
         name="Night Start Time",
         entity_registry_enabled_default=True,
-        value_fn=lambda data: data.get("nightStartT"),
+        value_fn=lambda data: "{:02d}:{:02d}".format(
+            *divmod(data.get("nightStartT", 0), 60)
+        ),
     ),
     EheimSensorDescription(
         key="kH_valve",
-        mdi_icon="mdi:water-thermometer",
+        icon="mdi:water-thermometer",
         device_class=SensorDeviceClass.CO2,
         name="kH Value",
         entity_registry_enabled_default=True,
@@ -200,7 +205,7 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
         key="next_ph_service",
         device_class=SensorDeviceClass.TIMESTAMP,
         icon="mdi:wrench-clock",
-        name="Next PH Service",
+        name="Next pH Service",
         entity_registry_enabled_default=True,
         value_fn=lambda data: (
             dt_util.utcnow() + timedelta(days=data.get("serviceTime", 0))
@@ -228,8 +233,8 @@ SENSOR_GROUPS = {
     "ph_control": [
         "ph_current_ph",
         "ph_target_ph",
-        "ph_dayStart_time",
-        "ph_nightStart_time",
+        # "ph_dayStart_time",
+        # "ph_nightStart_time",
         "kH_valve",
         "next_ph_service",
     ],
