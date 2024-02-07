@@ -1,0 +1,16 @@
+{
+    "title": "EHEIM Digital",
+    "step": {
+      "user": {
+        "data": {
+          "ip_address": "IP Address or Hostname"
+        }
+      }
+    },
+    "error": {
+      "communication_error": "Failed to connect to the device. Please check the IP address or Hostname and try again."
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }

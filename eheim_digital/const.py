@@ -6,8 +6,8 @@ LOGGER: Logger = getLogger(__package__)
 NAME = "EHEIM Digital"
 DOMAIN = "eheim_digital"
 VERSION = "0.0.1"
-UPDATE_INTERVAL = 30
-PLATFORMS = ["sensor", "binary_sensor"]  # ["sensor", "binary_sensor", "light"]
+UPDATE_INTERVAL = 10
+PLATFORMS = ["sensor", "binary_sensor"]  # ["light"]
 
 DEVICE_TYPES = {
     "filter": {"name": "Filter", "icon": "mdi:filter"},
