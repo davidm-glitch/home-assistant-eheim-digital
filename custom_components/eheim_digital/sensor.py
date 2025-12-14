@@ -222,8 +222,8 @@ SENSOR_DESCRIPTIONS: tuple[EheimSensorDescription, ...] = (
     EheimSensorDescription(
         key="kH_valve",
         icon="mdi:water-thermometer",
-        device_class=SensorDeviceClass.CO2,
         name="kH Value",
+        native_unit_of_measurement="°dH",
         entity_registry_enabled_default=True,
         value_fn=lambda data: round(data.get("kH")),
     ),
