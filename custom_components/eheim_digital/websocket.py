@@ -207,7 +207,7 @@ class EheimDigitalWebSocketClient:
                 response_dict = json.loads(response)
 
                 if expected_reply and response_dict.get("title") != expected_reply :
-                    LOGGER.debu(
+                    LOGGER.debug(
                         "WEBSOCKET: Expected '%s' messages, but got a '%s' message", 
                         expected_reply,
                         response_dict.get("title")
