@@ -198,16 +198,21 @@ class EheimDigitalWebSocketClient:
 
             LOGGER.debug("WEBSOCKET: Sent message: %s", message_str)
 
+            expected_reply = None
+            if message.get("title").startswith("GET_") :
+                expected_reply = message.get("title")[4:] 
+
             while True:
                 response = await self._websocket.recv()  # raises ConnectionClosed* bij verbreking
                 response_dict = json.loads(response)
 
-                if response_dict.get("title") in ["REQ_KEEP_ALIVE", "KEEP_ALIVE"]:
-                    LOGGER.debug(
-                        "WEBSOCKET: Received keep-alive. Continuing to wait for response to: %s",
-                        message_str,
+                if expected_reply and response_dict.get("title") != expected_reply :
+                    LOGGER.debu(
+                        "WEBSOCKET: Expected '%s' messages, but got a '%s' message", 
+                        expected_reply,
+                        response_dict.get("title")
                     )
-                    continue  # Ignore keep-alives and continue waiting for the actual response
+                    continue  # Ignore incorrect replies
 
                 LOGGER.debug("WEBSOCKET: Received response: %s", response)
                 return response
